@@ -1,4 +1,3 @@
-
 #include "AS5047U.hpp"
 
 // Inline function definitions
@@ -6,35 +5,31 @@ inline void AS5047U::setFrameFormat(FrameFormat format) {
     frameFormat = format;
 }
 
-// Implementation of constructor
+// Constructor implementation
 AS5047U::AS5047U(spiBus &bus, FrameFormat frameFormat)
     : spi(bus), frameFormat(frameFormat) {
-    // Nothing else to initialize; sensor default registers will be used unless changed by user.
+    // No further initialization (use sensor defaults unless configured).
 }
-
-uint16_t AS5047U::readRegister(uint16_t address) {
+uint16_t AS5047U::readRegister(uint16_t address, uint8_t padByte = 0x00) {
     uint16_t result = 0;
     if(frameFormat == FrameFormat::SPI_16) {
-        // 16-bit frame without CRC
-        uint16_t cmd = static_cast<uint16_t>(0x4000 | (address & 0x3FFF)); // bit14=1 for read, bit15 ignored
-        uint8_t tx[2];
-        uint8_t rx[2];
+        // 16-bit frame without CRC (no PAD byte used)
+        uint16_t cmd = static_cast<uint16_t>(0x4000 | (address & 0x3FFF)); // bit14=1 for read
+        uint8_t tx[2], rx[2];
         // Send read command (16 bits)
         tx[0] = static_cast<uint8_t>(cmd >> 8);
         tx[1] = static_cast<uint8_t>(cmd & 0xFF);
         spi.transfer(tx, rx, 2);
-        // Send NOP to receive data
-        uint16_t nopCmd = 0x0000;
-        tx[0] = 0x00;
-        tx[1] = 0x00;
+        // Send NOP (no-op) to receive the register data
+        uint8_t txNOP[2] = {0x00, 0x00};
         uint8_t rxData[2];
-        spi.transfer(tx, rxData, 2);
+        spi.transfer(txNOP, rxData, 2);
         uint16_t raw = (static_cast<uint16_t>(rxData[0]) << 8) | rxData[1];
-        // Mask out error/warning flags (bits15,14) and keep 14-bit data
+        // Mask out status flags (bits 15,14) and keep 14-bit data
         result = raw & 0x3FFF;
     } else if(frameFormat == FrameFormat::SPI_24) {
-        // 24-bit frame with CRC
-        uint16_t crcInput = static_cast<uint16_t>((1 << 14) | (address & 0x3FFF)); // prepare 16-bit command (RW=1 at bit14)
+        // 24-bit frame with CRC (8-bit CRC for each 16-bit word) (no PAD byte used)
+        uint16_t crcInput = static_cast<uint16_t>((1 << 14) | (address & 0x3FFF)); // RW=1 at bit14 for read
         uint8_t crc = computeCRC8(crcInput);
         uint8_t txCmd[3];
         txCmd[0] = static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x40); // bit6=1 (read), bits5-0 = addr[13:8]
@@ -42,8 +37,8 @@ uint16_t AS5047U::readRegister(uint16_t address) {
         txCmd[2] = crc;
         uint8_t rxCmd[3];
         spi.transfer(txCmd, rxCmd, 3);
-        // Second 24-bit frame (NOP) to receive the data
-        uint16_t nopAddr = REG_NOP;
+        // Second frame (NOP) to receive data
+        uint16_t nopAddr = AS5047U_REG::NOP::ADDRESS;
         uint16_t nopCrcInput = static_cast<uint16_t>((1 << 14) | (nopAddr & 0x3FFF));
         uint8_t crcNOP = computeCRC8(nopCrcInput);
         uint8_t txNOP[3] = {
@@ -54,27 +49,31 @@ uint16_t AS5047U::readRegister(uint16_t address) {
         uint8_t rxDataFrame[3];
         spi.transfer(txNOP, rxDataFrame, 3);
         uint16_t raw = (static_cast<uint16_t>(rxDataFrame[0]) << 8) | rxDataFrame[1];
+        uint8_t crcDevice = rxDataFrame[2];
         uint8_t crcCalc = computeCRC8(raw);
-        (void)crcCalc; // ignore computed CRC here (device sets CRCERR flag on mismatch)
+        if (crcDevice != crcCalc) {
+            // CRC error: read and update sticky error flags
+            updateStickyErrors(readReg<AS5047U_REG::ERRFL>().value);
+        }
         result = raw & 0x3FFF;
     } else if(frameFormat == FrameFormat::SPI_32) {
-        // 32-bit frame with CRC and pad
+        // 32-bit frame with CRC and pad - using the provided padByte
         uint16_t crcInput = static_cast<uint16_t>((1 << 14) | (address & 0x3FFF));
         uint8_t crc = computeCRC8(crcInput);
         uint8_t txCmd[4] = {
-            0x00, // pad byte
+            padByte, // Use the provided PAD byte
             static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x40),
             static_cast<uint8_t>(address & 0xFF),
             crc
         };
         uint8_t rxCmd[4];
         spi.transfer(txCmd, rxCmd, 4);
-        // Second 32-bit frame (NOP) to get data
-        uint16_t nopAddr = REG_NOP;
+        // Second frame (NOP) to get data
+        uint16_t nopAddr = AS5047U_REG::NOP::ADDRESS;
         uint16_t nopCrcInput = static_cast<uint16_t>((1 << 14) | (nopAddr & 0x3FFF));
         uint8_t crcNOP = computeCRC8(nopCrcInput);
         uint8_t txNOP[4] = {
-            0x00,
+            padByte, // Use the provided PAD byte
             static_cast<uint8_t>(((nopAddr >> 8) & 0x3F) | 0x40),
             static_cast<uint8_t>(nopAddr & 0xFF),
             crcNOP
@@ -82,41 +81,45 @@ uint16_t AS5047U::readRegister(uint16_t address) {
         uint8_t rxDataFrame[4];
         spi.transfer(txNOP, rxDataFrame, 4);
         uint16_t raw = (static_cast<uint16_t>(rxDataFrame[1]) << 8) | rxDataFrame[2];
-        uint8_t rxCrc = rxDataFrame[3];
+        uint8_t crcDevice = rxDataFrame[3];
         uint8_t crcCalc = computeCRC8(raw);
-        (void)rxCrc;
-        (void)crcCalc;
+        if (crcDevice != crcCalc) {
+            updateStickyErrors(readReg<AS5047U_REG::ERRFL>().value);
+        }
         result = raw & 0x3FFF;
     }
     return result;
 }
-
-void AS5047U::writeRegister(uint16_t address, uint16_t value) {
+void AS5047U::writeRegister(uint16_t address, uint16_t value, uint8_t padByte = 0x00) {
     if(frameFormat == FrameFormat::SPI_16) {
         // 16-bit write (two 16-bit frames)
-        uint16_t cmd = static_cast<uint16_t>(address & 0x3FFF); // bit14=0 (write)
-        uint8_t tx[2] = { static_cast<uint8_t>(cmd >> 8), static_cast<uint8_t>(cmd & 0xFF) };
+        uint16_t cmd = static_cast<uint16_t>(address & 0x3FFF); // bit14=0 for write
+        uint8_t tx[2] = {
+            static_cast<uint8_t>(cmd >> 8),
+            static_cast<uint8_t>(cmd & 0xFF)
+        };
         uint8_t rx_dummy[2];
         spi.transfer(tx, rx_dummy, 2);
-        // Second frame: send 14-bit data
+        // Second frame: send 14-bit data payload
         uint16_t dataFrame = value & 0x3FFF;
         tx[0] = static_cast<uint8_t>(dataFrame >> 8);
         tx[1] = static_cast<uint8_t>(dataFrame & 0xFF);
         uint8_t rxDataResp[2];
         spi.transfer(tx, rxDataResp, 2);
-        // (MISO returns status of previous command, if any; not explicitly checked here)
+        // (MISO returns status of previous command, not explicitly checked here)
     } else if(frameFormat == FrameFormat::SPI_24) {
         // 24-bit write with CRC
+        // Per docs: bits 23=0 (don't care), 22=0 (write), 21:8=address, 7:0=CRC
         uint16_t cmdPayload = static_cast<uint16_t>((0 << 14) | (address & 0x3FFF));
         uint8_t cmdCrc = computeCRC8(cmdPayload);
         uint8_t txCmd[3] = {
-            static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x00),
+            static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x00), // bit6=0 (write)
             static_cast<uint8_t>(address & 0xFF),
             cmdCrc
         };
         uint8_t rxCmd[3];
         spi.transfer(txCmd, rxCmd, 3);
-        // Second 24-bit frame: send data + CRC
+        // Second frame: send data + CRC
         uint16_t dataPayload = value & 0x3FFF;
         uint8_t dataCrc = computeCRC8(dataPayload);
         uint8_t txData[3] = {
@@ -128,20 +131,22 @@ void AS5047U::writeRegister(uint16_t address, uint16_t value) {
         spi.transfer(txData, rxData, 3);
     } else if(frameFormat == FrameFormat::SPI_32) {
         // 32-bit write with CRC and pad
+        // Per docs: bits 31:24=PAD, 23=0 (don't care), 22=0 (write), 21:8=address, 7:0=CRC
         uint16_t cmdPayload = static_cast<uint16_t>((0 << 14) | (address & 0x3FFF));
         uint8_t cmdCrc = computeCRC8(cmdPayload);
         uint8_t txCmd[4] = {
-            0x00,
-            static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x00),
+            padByte, // Use the provided PAD byte
+            static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x00), // bit6=0 (write)
             static_cast<uint8_t>(address & 0xFF),
             cmdCrc
         };
         uint8_t rxCmd[4];
         spi.transfer(txCmd, rxCmd, 4);
+        // Second frame: send data + CRC
         uint16_t dataPayload = value & 0x3FFF;
         uint8_t dataCrc = computeCRC8(dataPayload);
         uint8_t txData[4] = {
-            0x00,
+            padByte, // Use the provided PAD byte
             static_cast<uint8_t>((dataPayload >> 8) & 0xFF),
             static_cast<uint8_t>(dataPayload & 0xFF),
             dataCrc
@@ -153,283 +158,198 @@ void AS5047U::writeRegister(uint16_t address, uint16_t value) {
 
 uint8_t AS5047U::computeCRC8(uint16_t data16) const {
     // CRC-8 with polynomial 0x1D, initial value 0xC4, final XOR 0xFF
+    // Reference implementation: no reflection, final XOR 0xFF
     uint8_t crc = 0xC4;
-    uint16_t data = data16;
-    for(int i = 0; i < 16; ++i) {
-        uint8_t bit = (data & 0x8000) ? 1 : 0;
-        data <<= 1;
-        if(crc & 0x80) {
-            crc = static_cast<uint8_t>((crc << 1) ^ 0x1D);
-        } else {
-            crc <<= 1;
-        }
-        if(bit) {
-            crc ^= 0x1D;
-        }
+    for (int i = 0; i < 16; ++i) {
+        bool bit = ((data16 >> (15 - i)) & 1) ^ ((crc >> 7) & 1);
+        crc = (crc << 1) ^ (bit ? 0x1D : 0x00);
     }
     crc ^= 0xFF;
     return crc;
 }
+// CRC-8 self-test (static_asserts, will fail build if regression occurs)
+static_assert(AS5047U().computeCRC8(0x3FFF) == 0xF3, "CRC8(0x3FFF) should be 0xF3");
+static_assert(AS5047U().computeCRC8(0x0000) == 0x3B, "CRC8(0x0000) should be 0x3B");
+static_assert(AS5047U().computeCRC8(0x1234) == 0xB2, "CRC8(0x1234) should be 0xB2");
 
-// Public method implementations
+// ══════════════════════════════════════════════════════════════════════════════════════════
+//                                PRIVATE HELPERS
+// ══════════════════════════════════════════════════════════════════════════════════════════
 
-uint16_t AS5047U::getAngle() {
-    return readRegister(REG_ANGLECOM);
+// Helper: encode/decode register value
+
+/**
+ * @brief Anonymous namespace for SPI encoding and decoding functions.
+ * 
+ * Contains utility templates for converting between register types and raw uint16_t values
+ * for SPI communication with the AS5047U magnetic encoder.
+ */
+namespace {
+/**
+ * @brief Encodes a register object to its raw 16-bit representation.
+ * 
+ * @tparam RegT The register type to encode.
+ * @param r The register instance to encode.
+ * @return uint16_t The raw 16-bit value representing the register.
+ */
+template <typename RegT>
+static inline uint16_t encode(const RegT& r) { return r.value; }
+
+/**
+ * @brief Decodes a raw 16-bit value into a typed register object.
+ * 
+ * @tparam RegT The register type to decode into.
+ * @param raw The raw 16-bit value to decode.
+ * @return RegT A register object with the given value.
+ */
+template <typename RegT>
+static inline RegT decode(uint16_t raw) { RegT r{}; r.value = raw; return r; }
 }
 
-uint16_t AS5047U::getRawAngle() {
-    return readRegister(REG_ANGLEUNC);
-}
+// ══════════════════════════════════════════════════════════════════════════════════════════
+//                                 PUBLIC HIGH-LEVEL API
+// ══════════════════════════════════════════════════════════════════════════════════════════
 
+uint16_t AS5047U::getAngle() { return readReg<AS5047U_REG::ANGLECOM>().bits.ANGLECOM_value; }
+uint16_t AS5047U::getRawAngle() { return readReg<AS5047U_REG::ANGLEUNC>().bits.ANGLEUNC_value; }
 int16_t AS5047U::getVelocity() {
-    uint16_t raw = readRegister(REG_VEL);
-    int16_t vel = static_cast<int16_t>(raw);
-    if(raw & 0x2000) {
-        vel |= 0xC000; // sign-extend if bit13 (sign bit of 14-bit value) is set
-    }
-    return vel;
+    auto v = readReg<AS5047U_REG::VEL>().bits.VEL_value;
+    // Sign-extend 14-bit value to int16_t (datasheet: VEL[13:0], sign at bit 13)
+    return static_cast<int16_t>((static_cast<int16_t>(v << 2)) >> 2);
 }
-
-uint8_t AS5047U::getAGC() {
-    uint16_t raw = readRegister(REG_AGC);
-    return static_cast<uint8_t>(raw & 0x00FF);
-}
-
-uint16_t AS5047U::getMagnitude() {
-    uint16_t raw = readRegister(REG_MAG);
-    return raw & 0x3FFF;
-}
-
-uint16_t AS5047U::getErrorFlags() {
-    return readRegister(REG_ERRFL);
-}
+uint8_t AS5047U::getAGC() { return readReg<AS5047U_REG::AGC>().bits.AGC_value; }
+uint16_t AS5047U::getMagnitude() { return readReg<AS5047U_REG::MAG>().bits.MAG_value; }
+uint16_t AS5047U::getErrorFlags() { return readReg<AS5047U_REG::ERRFL>().value; }
 
 void AS5047U::setZeroPosition(uint16_t angleOffset) {
-    uint16_t angle = angleOffset & 0x3FFF;
-    uint16_t zposm = (angle >> 6) & 0x00FF;
-    uint16_t zposl = angle & 0x003F;
-    writeRegister(REG_ZPOSM, zposm);
-    writeRegister(REG_ZPOSL, zposl);
+    angleOffset &= 0x3FFF;
+    AS5047U_REG::ZPOSM m{}; m.bits.ZPOSM_bits = (angleOffset >> 6) & 0xFF;
+    AS5047U_REG::ZPOSL l{}; l.bits.ZPOSL_bits = angleOffset & 0x3F;
+    writeReg(m); writeReg(l);
 }
 
 uint16_t AS5047U::getZeroPosition() const {
-    AS5047U *nonConst = const_cast<AS5047U*>(this);
-    uint16_t msb = nonConst->readRegister(REG_ZPOSM) & 0x00FF;
-    uint16_t lsb = nonConst->readRegister(REG_ZPOSL) & 0x003F;
-    return static_cast<uint16_t>((msb << 6) | lsb);
+    auto m = const_cast<AS5047U*>(this)->readReg<AS5047U_REG::ZPOSM>().bits.ZPOSM_bits;
+    auto l = const_cast<AS5047U*>(this)->readReg<AS5047U_REG::ZPOSL>().bits.ZPOSL_bits;
+    return static_cast<uint16_t>((m << 6) | l);
 }
 
 void AS5047U::setDirection(bool clockwise) {
-    uint16_t reg = readRegister(REG_SETTINGS2);
-    if(clockwise) {
-        reg &= ~0x0004;
-    } else {
-        reg |= 0x0004;
-    }
-    writeRegister(REG_SETTINGS2, reg);
+    auto s2 = readReg<AS5047U_REG::SETTINGS2>();
+    s2.bits.DIR = clockwise ? 0 : 1;
+    writeReg(s2);
 }
 
 void AS5047U::setABIResolution(uint8_t resolution_bits) {
-    if(resolution_bits < 10) resolution_bits = 10;
-    if(resolution_bits > 14) resolution_bits = 14;
-    uint8_t code = resolution_bits - 10;
-    uint16_t reg = readRegister(REG_SETTINGS3);
-    reg &= ~0x00E0;
-    reg |= static_cast<uint16_t>((code & 0x07) << 5);
-    writeRegister(REG_SETTINGS3, reg);
+    resolution_bits = std::clamp<uint8_t>(resolution_bits, 10, 14);
+    auto s3 = readReg<AS5047U_REG::SETTINGS3>();
+    s3.bits.ABIRES = resolution_bits - 10;
+    writeReg(s3);
 }
 
 void AS5047U::setUVWPolePairs(uint8_t polePairs) {
-    if(polePairs < 1) polePairs = 1;
-    if(polePairs > 7) polePairs = 7;
-    uint16_t reg = readRegister(REG_SETTINGS3);
-    reg &= ~0x0007;
-    reg |= static_cast<uint16_t>(polePairs & 0x07);
-    writeRegister(REG_SETTINGS3, reg);
+    polePairs = std::clamp<uint8_t>(polePairs, 1, 7);
+    auto s3 = readReg<AS5047U_REG::SETTINGS3>();
+    s3.bits.UVWPP = polePairs;
+    writeReg(s3);
 }
 
 void AS5047U::setIndexPulseLength(uint8_t pulseLengthLSB) {
-    uint16_t reg = readRegister(REG_SETTINGS2);
-    if(pulseLengthLSB == 1) {
-        reg |= 0x0001;
-    } else {
-        reg &= ~0x0001;
-    }
-    writeRegister(REG_SETTINGS2, reg);
+    auto s2 = readReg<AS5047U_REG::SETTINGS2>();
+    s2.bits.IWIDTH = (pulseLengthLSB == 1) ? 1 : 0;
+    writeReg(s2);
 }
 
+// Truth table for configureInterface():
+// | ABI | UVW | PWM | Pin 8 (I) | Pin 14 (W) |
+// |-----|-----|-----|-----------|------------|
+// |  1  |  0  |  0  |   I       |   A/B      |
+// |  1  |  0  |  1  |   I       |   PWM      |
+// |  0  |  1  |  0  |   UVW     |   W        |
+// |  0  |  1  |  1  |   PWM     |   W        |
+// |  1  |  1  |  x  |   I       |   W        |
+// |  0  |  0  |  1  |   -       |   PWM      |
+// |  0  |  0  |  0  |   -       |   -        |
+//
 void AS5047U::configureInterface(bool abi, bool uvw, bool pwm) {
-    uint16_t disableReg = readRegister(REG_DISABLE);
-    uint16_t settings2 = readRegister(REG_SETTINGS2);
-    // Configure interface enable/disable bits
-    if(abi) disableReg &= ~0x0002; else disableReg |= 0x0002;
-    if(uvw) disableReg &= ~0x0001; else disableReg |= 0x0001;
-    // Determine PWM routing based on active interfaces
-    if(abi && !uvw) {
-        settings2 &= ~0x0008; // UVW_ABI = 0 (ABI mode)
-        if(pwm) {
-            settings2 |= 0x0080;    // enable PWM on W
-            disableReg |= 0x0001;   // ensure UVW outputs off
-        } else {
-            settings2 &= ~0x0080;
-        }
-    } else if(!abi && uvw) {
-        settings2 |= 0x0008; // UVW_ABI = 1 (UVW mode)
-        if(pwm) {
-            settings2 |= 0x0080;    // enable PWM on I
-            disableReg |= 0x0002;   // ensure ABI outputs off
-        } else {
-            settings2 &= ~0x0080;
-        }
-    } else if(abi && uvw) {
-        // Both interfaces on, PWM not available
-        disableReg &= ~0x0001;
-        disableReg &= ~0x0002;
-        settings2 &= ~0x0080;
-        settings2 &= ~0x0008;
+    auto dis = readReg<AS5047U_REG::DISABLE>();
+    auto s2  = readReg<AS5047U_REG::SETTINGS2>();
+    dis.bits.ABI_off = abi ? 0 : 1;
+    dis.bits.UVW_off = uvw ? 0 : 1;
+    if (abi && !uvw) {
+        s2.bits.UVW_ABI = 0;
+        s2.bits.PWMon   = pwm;
+    } else if (!abi && uvw) {
+        s2.bits.UVW_ABI = 1;
+        s2.bits.PWMon   = pwm;
     } else {
-        // Both off
-        disableReg |= 0x0001;
-        disableReg |= 0x0002;
-        if(pwm) {
-            settings2 &= ~0x0008;
-            settings2 |= 0x0080;   // PWM on W by default (ABI mode)
-        } else {
-            settings2 &= ~0x0080;
-        }
+        s2.bits.PWMon   = pwm;
+        s2.bits.UVW_ABI = 0;
     }
-    writeRegister(REG_DISABLE, disableReg);
-    writeRegister(REG_SETTINGS2, settings2);
+    writeReg(dis); writeReg(s2);
 }
 
-void AS5047U::setDynamicAngleCompensation(bool enabled) {
-    uint16_t reg = readRegister(REG_SETTINGS2);
-    if(enabled) {
-        reg &= ~0x0010;
-    } else {
-        reg |= 0x0010;
-    }
-    writeRegister(REG_SETTINGS2, reg);
+void AS5047U::setDynamicAngleCompensation(bool enable) {
+    auto s2 = readReg<AS5047U_REG::SETTINGS2>();
+    s2.bits.DAECDIS = enable ? 0 : 1;
+    writeReg(s2);
 }
 
-void AS5047U::setAdaptiveFilter(bool enabled) {
-    uint16_t reg = readRegister(REG_DISABLE);
-    if(enabled) {
-        reg &= ~0x0040;
-    } else {
-        reg |= 0x0040;
-    }
-    writeRegister(REG_DISABLE, reg);
+void AS5047U::setAdaptiveFilter(bool enable) {
+    auto dis = readReg<AS5047U_REG::DISABLE>();
+    dis.bits.FILTER_disable = enable ? 0 : 1;
+    writeReg(dis);
 }
 
 void AS5047U::setFilterParameters(uint8_t k_min, uint8_t k_max) {
-    if(k_min > 7) k_min = 7;
-    if(k_max > 7) k_max = 7;
-    uint16_t reg = readRegister(REG_SETTINGS1);
-    reg &= ~0x003F;
-    reg |= static_cast<uint16_t>((k_max & 0x07) | ((k_min & 0x07) << 3));
-    writeRegister(REG_SETTINGS1, reg);
+    k_min = std::min<uint8_t>(k_min, 7); k_max = std::min<uint8_t>(k_max, 7);
+    auto s1 = readReg<AS5047U_REG::SETTINGS1>();
+    s1.bits.K_min = k_min;
+    s1.bits.K_max = k_max;
+    writeReg(s1);
 }
 
-void AS5047U::setNoiseModeHigh(bool highNoise) {
-    uint16_t reg = readRegister(REG_SETTINGS2);
-    if(highNoise) {
-        reg |= 0x0002;
-    } else {
-        reg &= ~0x0002;
-    }
-    writeRegister(REG_SETTINGS2, reg);
+void AS5047U::set150CTemperatureMode(bool enable) {
+    auto s2 = readReg<AS5047U_REG::SETTINGS2>();
+    s2.bits.NOISESET = enable ? 1 : 0;
+    writeReg(s2);
 }
 
 bool AS5047U::programOTP() {
-    // For reliability, use 24-bit frames for programming if not already in CRC mode
-    FrameFormat prevFormat = frameFormat;
-    if(frameFormat == FrameFormat::SPI_16) {
-        frameFormat = FrameFormat::SPI_24;
-    }
-    // 1. (Power-on assumed done externally)
-    // 2. (Custom settings should have been written via set* methods)
-    // 3. (Magnet placed at desired zero position by user)
-    // 4. Read current angle (with compensation)
-    uint16_t currentAngle = readRegister(REG_ANGLECOM) & 0x3FFF;
-    // 5. Write zero position registers
-    uint16_t zposm = (currentAngle >> 6) & 0x00FF;
-    uint16_t zposl = currentAngle & 0x003F;
-    writeRegister(REG_ZPOSM, zposm);
-    writeRegister(REG_ZPOSL, zposl);
-    // 6. Read back volatile registers 0x0016-0x001A (ZPOSM, ZPOSL, SETTINGS1-3)
-    uint16_t regsVolatile[5];
-    for(uint16_t addr = 0x0016; addr <= 0x001A; ++addr) {
-        regsVolatile[addr - 0x0016] = readRegister(addr);
-    }
-    // 7. Enable ECC (ECC_en = 1 in ECC register 0x001B)
-    uint16_t eccReg = readRegister(REG_ECC);
-    eccReg |= 0x0080;
-    writeRegister(REG_ECC, eccReg);
-    // 8. Read calculated ECC checksum from ECCCHK register
-    uint16_t eccKey = readRegister(REG_ECCCHK) & 0x007F;
-    // 9. Write ECC checksum key into ECC register (preserving ECC_en)
-    eccReg = 0x0080 | (eccKey & 0x007F);
-    writeRegister(REG_ECC, eccReg);
-    // 10. Read registers 0x0016-0x001B (including ECC) for verification
-    uint16_t regsRead1[6];
-    for(uint16_t addr = 0x0016; addr <= 0x001B; ++addr) {
-        regsRead1[addr - 0x0016] = readRegister(addr);
-    }
-    // 11. Compare intended vs read values
-    bool match = true;
-    for(int i = 0; i < 5; ++i) {
-        if(regsRead1[i] != regsVolatile[i]) {
-            match = false;
-            break;
-        }
-    }
-    if(regsRead1[5] != eccReg) match = false;
-    if(!match) {
-        frameFormat = prevFormat;
-        return false;
-    }
-    // 12. Enable OTP programming mode (PROGEN=1)
-    writeRegister(REG_PROG, PROG_BIT_PROGEN);
-    // 13. Start OTP burn (PROGOTP=1 while PROGEN=1)
-    writeRegister(REG_PROG, PROG_BIT_PROGEN | PROG_BIT_PROGOTP);
-    // 14. Wait until PROG register reads 0x0001 (programming complete)
-    bool progDone = false;
-    for(int attempts = 0; attempts < 10000; ++attempts) {
-        uint16_t progVal = readRegister(REG_PROG);
-        if(progVal == 0x0001) {
-            progDone = true;
-            break;
-        }
-        // (A short delay could be inserted here on real hardware)
-    }
-    if(!progDone) {
-        frameFormat = prevFormat;
-        return false;
-    }
-    // 15. Clear volatile registers 0x0015-0x001B (write 0x0000 to each)
-    for(uint16_t addr = 0x0015; addr <= 0x001B; ++addr) {
-        writeRegister(addr, 0x0000);
-    }
-    // 16. Set PROGVER=1 (enable guard-band test mode)
-    writeRegister(REG_PROG, PROG_BIT_PROGEN | PROG_BIT_PROGVER);
-    // 17. Refresh registers from OTP (OTPREF=1)
-    writeRegister(REG_PROG, PROG_BIT_PROGEN | PROG_BIT_PROGVER | PROG_BIT_OTPREF);
-    // 18. Read registers 0x0016-0x001B (post-refresh)
-    uint16_t regsRead2[6];
-    for(uint16_t addr = 0x0016; addr <= 0x001B; ++addr) {
-        regsRead2[addr - 0x0016] = readRegister(addr);
-    }
-    // 19. Compare with original intended settings
-    bool success = true;
-    for(int i = 0; i < 6; ++i) {
-        if(regsRead2[i] != regsRead1[i]) {
-            success = false;
-            break;
-        }
-    }
-    // (Steps 20-23: optional power-cycle verification not automated here)
-    // Restore previous SPI frame format
-    frameFormat = prevFormat;
-    return success;
+    FrameFormat backup = frameFormat;
+    if (frameFormat == FrameFormat::SPI_16) frameFormat = FrameFormat::SPI_24;
+    setZeroPosition(getAngle());
+    uint16_t volatileShadow[5];
+    for (uint16_t a = 0x0016; a <= 0x001A; ++a) volatileShadow[a-0x0016] = readRegister(a);
+    auto ecc = readReg<AS5047U_REG::ECC>();
+    ecc.bits.ECC_en = 1;
+    writeReg(ecc);
+    auto key = readReg<AS5047U_REG::ECC_Checksum>().bits.ECC_s;
+    ecc.bits.ECC_chsum = key;
+    writeReg(ecc);
+    for (uint16_t a = 0x0016; a <= 0x001A; ++a)
+        if (readRegister(a) != volatileShadow[a-0x0016]) { frameFormat = backup; return false; }
+    AS5047U_REG::PROG p{};  p.bits.PROGEN = 1;  writeReg(p);
+    p.bits.PROGOTP = 1;     writeReg(p);
+    for (uint16_t i=0;i<15000;++i)
+        if (readRegister(PROG_ADDR) == 0x0001) { frameFormat = backup; return true; }
+    frameFormat = backup;
+    return false;
+}
+
+void AS5047U::updateStickyErrors(uint16_t errfl) {
+    // Map ERRFL bits to sticky error enum
+    if (errfl & (1 << 6)) stickyErrors |= static_cast<uint8_t>(AS5047U_Error::CRC);
+    if (errfl & (1 << 4)) stickyErrors |= static_cast<uint8_t>(AS5047U_Error::Framing);
+    if (errfl & (1 << 5)) stickyErrors |= static_cast<uint8_t>(AS5047U_Error::Command);
+    if (errfl & (1 << 7)) stickyErrors |= static_cast<uint8_t>(AS5047U_Error::Watchdog);
+    if (errfl & (1 << 0)) stickyErrors |= static_cast<uint8_t>(AS5047U_Error::AGCWarning);
+    if (errfl & (1 << 1)) stickyErrors |= static_cast<uint8_t>(AS5047U_Error::MagHalf);
+    if (errfl & (1 << 2)) stickyErrors |= static_cast<uint8_t>(AS5047U_Error::P2RAMWarn);
+    if (errfl & (1 << 3)) stickyErrors |= static_cast<uint8_t>(AS5047U_Error::P2RAMError);
+}
+
+AS5047U_Error AS5047U::getStickyErrorFlags() {
+    uint8_t val = stickyErrors.exchange(0);
+    return static_cast<AS5047U_Error>(val);
 }
