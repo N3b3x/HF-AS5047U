@@ -20,26 +20,32 @@
 #include <algorithm>
 #include <atomic>
 #include <bitset>
+#include <cmath>  // for M_PI and math functions
+#include <cstdio>  // for printf
 #include "as5047u_registers_2.hpp"
 
+// Error flags from ERRFL register
+enum class AS5047U_Error : uint16_t {
+    None            = 0,
+    AgcWarning      = 1 << 0,  ///< AGC reached minimum (0) or maximum (255) value
+    MagHalf         = 1 << 1,  ///< Magnetic field is half of regulated value (AGC=255)
+    P2ramWarning    = 1 << 2,  ///< ECC corrected 1 bit in P2RAM customer area
+    P2ramError      = 1 << 3,  ///< ECC detected 2+ uncorrectable errors in P2RAM
+    FramingError    = 1 << 4,  ///< SPI framing error
+    CommandError    = 1 << 5,  ///< Invalid SPI command received
+    CrcError        = 1 << 6,  ///< CRC error during SPI communication
+    WatchdogError   = 1 << 7,  ///< Internal oscillator or watchdog not working correctly
+    OffCompError    = 1 << 9,  ///< Internal offset compensation not finished
+    CordicOverflow  = 1 << 10  ///< CORDIC algorithm overflow
+};
+
 /**
- * @brief Abstract SPI bus interface that hardware-specific implementations must provide.
+ * @brief Supported SPI frame formats for AS5047U communication.
  */
-class spiBus {
-public:
-    virtual ~spiBus() = default;
-    
-    /**
-     * @brief Perform a full-duplex SPI data transfer.
-     *
-     * Sends `len` bytes from `tx` and simultaneously receives `len` bytes into `rx`.
-     * Implementations should assert the device's chip select for the duration of the transfer.
-     *
-     * @param tx Pointer to data to transmit (len bytes). If nullptr, zeros can be sent.
-     * @param rx Pointer to buffer for received data (len bytes). If nullptr, received data can be ignored.
-     * @param len Number of bytes to transfer.
-     */
-    virtual void transfer(const uint8_t *tx, uint8_t *rx, std::size_t len) = 0;
+enum class FrameFormat : uint8_t {
+    SPI_16, /**< 16-bit frames (no CRC, high-throughput mode) */
+    SPI_24, /**< 24-bit frames (includes 8-bit CRC for reliability) */
+    SPI_32  /**< 32-bit frames (includes 8-bit CRC and 8-bit pad for daisy-chain) */
 };
 
 /**
@@ -51,51 +57,115 @@ public:
  */
 class AS5047U {
 public:
+
+    /**
+     * @brief Abstract SPI bus interface that hardware-specific implementations must provide.
+     */
+    class spiBus {
+    public:
+        virtual ~spiBus() = default;
+        
+        /**
+         * @brief Perform a full-duplex SPI data transfer.
+         *
+         * Sends `len` bytes from `tx` and simultaneously receives `len` bytes into `rx`.
+         * Implementations should assert the device's chip select for the duration of the transfer.
+         *
+         * @param tx Pointer to data to transmit (len bytes). If nullptr, zeros can be sent.
+         * @param rx Pointer to buffer for received data (len bytes). If nullptr, received data can be ignored.
+         * @param len Number of bytes to transfer.
+         */
+        virtual void transfer(const uint8_t *tx, uint8_t *rx, std::size_t len) = 0;
+    };
+    
+    //------------------------------------------------------------------
+    // Constructor and destructor
+    //------------------------------------------------------------------
+
     /**
      * @brief Construct a new AS5047U driver.
      * @param bus Reference to an spiBus implementation for SPI communication.
      * @param format SPI frame format to use (16-bit, 24-bit, or 32-bit). Default is 16-bit frames.
      */
-    explicit AS5047U(spiBus &bus, FrameFormat format = FrameFormat::SPI_16) noexcept;
+    explicit AS5047U(AS5047U::spiBus &bus, FrameFormat format = FrameFormat::SPI_16) noexcept;
 
     ~AS5047U() = default;
-
+    
     //------------------------------------------------------------------
     // High-level API
     //------------------------------------------------------------------
+    /**
+     * @brief Set the SPI frame format (16, 24, or 32-bit).
+     * @param fmt The desired SPI frame format.
+     */
+    void setFrameFormat(FrameFormat fmt) noexcept;
+    
+    /**
+     * @brief Read the 14-bit absolute angle with dynamic compensation (DAEC active).
+     *  @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     *  @return The current angle in LSB (0-16383).
+     */
+    [[nodiscard]] uint16_t getAngle(uint8_t retries = 0);
+    
+    /**
+     * @brief Read the 14-bit absolute angle without dynamic compensation (raw angle).
+     *  @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     *  @return The current raw angle in LSB (0-16383).
+     */
+    [[nodiscard]] uint16_t getRawAngle(uint8_t retries = 0);
+    
+    /**
+     * @brief Read the current rotational velocity (signed 14-bit).
+     *  @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     *  @return The current velocity in LSB (signed 14-bit).
+     */
+    [[nodiscard]] int16_t getVelocity(uint8_t retries = 0);
+
+    /** @brief Helper constants and methods for velocity unit conversions. */
+    struct Velocity {
+        static constexpr double DEG_PER_LSB = 24.141;
+        static constexpr double RAD_PER_LSB = DEG_PER_LSB * M_PI / 180.0;
+        static constexpr double RPM_PER_LSB = DEG_PER_LSB * (60.0 / 360.0);
+    };
+
+    /** @brief Get rotational velocity in degrees per second.
+     *  @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     */
+    [[nodiscard]] double getVelocityDegPerSec(uint8_t retries = 0);
+    /** @brief Get rotational velocity in radians per second.
+     *  @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     */
+    [[nodiscard]] double getVelocityRadPerSec(uint8_t retries = 0);
+    /** @brief Get rotational velocity in revolutions per minute.
+     *  @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     */
+    [[nodiscard]] double getVelocityRPM(uint8_t retries = 0);
 
     /**
-     * @brief Supported SPI frame formats for AS5047U communication.
+     * @brief Read the current Automatic Gain Control (AGC) value (0-255).
+     * @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     * @return The current AGC value.
      */
-    enum class FrameFormat : uint8_t {
-        SPI_16, /**< 16-bit frames (no CRC, high-throughput mode) */
-        SPI_24, /**< 24-bit frames (includes 8-bit CRC for reliability) */
-        SPI_32  /**< 32-bit frames (includes 8-bit CRC and 8-bit pad for daisy-chain) */
-    };
-    
-    /** @brief Set the SPI frame format (16, 24, or 32-bit). */
-    void setFrameFormat(FrameFormat fmt) noexcept;
+    [[nodiscard]] uint8_t getAGC(uint8_t retries = 0);
 
-    /** @brief Read the 14-bit absolute angle with dynamic compensation (DAEC active). */
-    [[nodiscard]] uint16_t getAngle();
-    
-    /** @brief Read the 14-bit absolute angle without DAEC (raw angle). */
-    [[nodiscard]] uint16_t getRawAngle();
-    
-    /** @brief Read the current rotational velocity (signed 14-bit). */
-    [[nodiscard]] int16_t getVelocity();
-    
-    /** @brief Read the current Automatic Gain Control (AGC) value (0-255). */
-    [[nodiscard]] uint8_t getAGC();
-    
-    /** @brief Read the magnetic field magnitude (14-bit value). */
-    [[nodiscard]] uint16_t getMagnitude();
-    
+    /**
+     * @brief Read the current magnetic field magnitude (14-bit value).
+     * @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     * @return The current magnetic field magnitude in LSB (0-16383).
+     */
+    [[nodiscard]] uint16_t getMagnitude(uint8_t retries = 0);
+
     /**
      * @brief Read and clear error flags.
+     * @param retries Number of retries on CRC/framing error (default 0 = no retry).
      * @return 16-bit error flag register (ERRFL). All flags clear after read.
      */
-    [[nodiscard]] uint16_t getErrorFlags();
+    [[nodiscard]] uint16_t getErrorFlags(uint8_t retries = 0);
+
+    /**
+     * @brief Dump formatted status and diagnostics using printf
+     */
+    void dumpStatus() const;
     
     /**
      * @brief Get the currently configured soft zero position offset (14-bit).
@@ -181,6 +251,54 @@ public:
      *          ~5V for 5V mode) and desired configuration before use.
      */
     bool programOTP();
+    
+    /**
+     * @brief Set the daisy-chain pad byte for 32-bit SPI frames.
+     *
+     * In 32-bit frame mode, the first byte is used as a pad to allow multiple devices on the same bus.
+     * @param pad Pad byte value (0x00–0xFF) to send as the MSB of each 32-bit transfer.
+     */
+    void setPad(uint8_t pad) noexcept;
+    
+    /**
+     * @brief Set incremental output hysteresis level.
+     *
+     * Controls the HYS field in SETTINGS3 to add output deadband and reduce chatter.
+     * @param hys Hysteresis level:
+     *   - SETTINGS3::Hysteresis::LSB_1 (0b00): 1 LSB deadband (~0.17°, default)
+     *   - SETTINGS3::Hysteresis::LSB_2 (0b01): 2 LSB deadband (~0.35°)
+     *   - SETTINGS3::Hysteresis::LSB_3 (0b10): 3 LSB deadband (~0.52°)
+     *   - SETTINGS3::Hysteresis::NONE  (0b11): No hysteresis
+     */
+    void setHysteresis(AS5047U_REG::SETTINGS3::Hysteresis hys);
+    
+    /**
+     * @brief Get current incremental output hysteresis setting.
+     * @return Current Hysteresis enum value (0b00–0b11).
+     */
+    AS5047U_REG::SETTINGS3::Hysteresis getHysteresis() const;
+
+    /** 
+     * @brief Select which angle register (0x3FFF) is returned on reads.
+     *
+     * Controls the Data_select bit in SETTINGS2.
+     * @param src Angle output source:
+     *   - SETTINGS2::AngleOutputSource::UseANGLECOM: read compensated angle (ANGLECOM)
+     *   - SETTINGS2::AngleOutputSource::UseANGLEUNC: read raw angle (ANGLEUNC)
+     */
+    void setAngleOutputSource(AS5047U_REG::SETTINGS2::AngleOutputSource src);
+
+    /**
+     * @brief Get currently selected angle output source for 0x3FFF reads.
+     * @return AngleOutputSource enum indicating ANGLECOM or ANGLEUNC.
+     */
+     AS5047U_REG::SETTINGS2::AngleOutputSource getAngleOutputSource() const;
+
+    /**
+     * @brief Read the full diagnostic register (DIA).
+     * @return DIA register struct containing per-bit calibration and status flags.
+     */
+     AS5047U_REG::DIA getDiagnostics() const;
 
     /**
      * @brief Reads data from a specified register in the AS5047U sensor
@@ -192,7 +310,7 @@ public:
      * it into a strongly-typed register object.
      */
     template <typename RegT>
-    RegT readReg() { return decode<RegT>(readRegister(RegT::ADDRESS)); }
+    RegT readReg() const { return decode<RegT>(readRegister(RegT::ADDRESS)); }
 
     /**
      * @brief Writes data to a specified register in the AS5047U sensor
@@ -207,42 +325,31 @@ public:
     void writeReg(const RegT& reg) { writeRegister(RegT::ADDRESS, encode(reg)); }
 
     /**
-     * @brief Retrieve and clear the sticky error bitfield (since last call).
+     * @brief Retrieve and clear the accumulated sticky error flags.
+     * @return Bitwise OR of AS5047U_Error enum flags since last call.
      */
-    AS5047U_Error getStickyErrorFlags();
+     AS5047U_Error getStickyErrorFlags();
 
 private:
+    //------------------------------------------------------------------
+     // Low-level helpers
+     //------------------------------------------------------------------
+    uint16_t readRegister(uint16_t addr) const;
+    void     writeRegister(uint16_t addr, uint16_t val) const;
 
-    //------------------------------------------------------------------
-    // Low-level helpers
-    //------------------------------------------------------------------
-    uint16_t readRegister(uint16_t addr);
-    void     writeRegister(uint16_t addr, uint16_t val);
-    [[nodiscard]] uint8_t computeCRC8(uint16_t data16) const;
-
-    //------------------------------------------------------------------
-    // Register instances
-    //------------------------------------------------------------------
     spiBus      &spi;         ///< reference to user-supplied SPI driver
     FrameFormat  frameFormat; ///< current SPI frame format
-    // (All register instance variables removed; use stack/register struct access only)
+    uint8_t      padByte{0};  ///< pad byte for SPI_32 daisy-chain indexing
+
     //------------------------------------------------------------------
-    // Error flags for CRC and SPI errors
-    enum class AS5047U_Error : uint8_t {
-        None        = 0,
-        CRC         = 1 << 0,
-        Framing     = 1 << 1,
-        Command     = 1 << 2,
-        Watchdog    = 1 << 3,
-        AGCWarning  = 1 << 4,
-        MagHalf     = 1 << 5,
-        P2RAMWarn   = 1 << 6,
-        P2RAMError  = 1 << 7,
-        // ... add more as needed ...
-    };
-    inline AS5047U_Error operator|(AS5047U_Error a, AS5047U_Error b) { return static_cast<AS5047U_Error>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b)); }
-    inline AS5047U_Error& operator|=(AS5047U_Error& a, AS5047U_Error b) { a = a | b; return a; }
-    std::atomic<uint8_t> stickyErrors {0};
-    void updateStickyErrors(uint16_t errfl);
-    //------------------------------------------------------------------
+    inline AS5047U_Error operator|(AS5047U_Error a, AS5047U_Error b) { 
+        return static_cast<AS5047U_Error>(static_cast<uint16_t>(a) | static_cast<uint16_t>(b)); 
+    }
+    
+    inline AS5047U_Error& operator|=(AS5047U_Error& a, AS5047U_Error b) { 
+        a = a | b; return a; 
+    }
+    
+    mutable std::atomic<uint16_t> stickyErrors{0};  ///< sticky error bits since last clear
+    void updateStickyErrors(uint16_t errfl) const;
 };
