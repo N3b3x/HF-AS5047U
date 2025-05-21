@@ -49,30 +49,104 @@ static inline RegT decode(uint16_t raw) { RegT r{}; r.value = raw; return r; }
 // ══════════════════════════════════════════════════════════════════════════════════════════
 //                                 PUBLIC HIGH-LEVEL API
 // ══════════════════════════════════════════════════════════════════════════════════════════
-uint16_t AS5047U::getAngle() { 
-    return readReg<AS5047U_REG::ANGLECOM>().bits.ANGLECOM_value; 
+
+uint16_t AS5047U::getAngle(uint8_t retries) {
+    uint16_t val = 0;
+    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
+    for (uint8_t i = 0; i <= retries; ++i) {
+        val = readReg<AS5047U_REG::ANGLECOM>().bits.ANGLECOM_value;
+        auto err = getStickyErrorFlags();
+        if (!(static_cast<uint16_t>(err) & retryMask)) break;
+    }
+    return val;
 }
 
-uint16_t AS5047U::getRawAngle() { 
-    return readReg<AS5047U_REG::ANGLEUNC>().bits.ANGLEUNC_value; 
+uint16_t AS5047U::getRawAngle(uint8_t retries) {
+    uint16_t val = 0;
+    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
+    for (uint8_t i = 0; i <= retries; ++i) {
+        val = readReg<AS5047U_REG::ANGLEUNC>().bits.ANGLEUNC_value;
+        auto err = getStickyErrorFlags();
+        if (!(static_cast<uint16_t>(err) & retryMask)) break;
+    }
+    return val;
 }
 
-int16_t AS5047U::getVelocity() {
-    auto v = readReg<AS5047U_REG::VEL>().bits.VEL_value;
-    // Sign-extend 14-bit value to int16_t (datasheet: VEL[13:0], sign at bit 13)
-    return static_cast<int16_t>((static_cast<int16_t>(v << 2)) >> 2);
+int16_t AS5047U::getVelocity(uint8_t retries) {
+    int16_t val = 0;
+    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
+    for (uint8_t i = 0; i <= retries; ++i) {
+        auto v = readReg<AS5047U_REG::VEL>().bits.VEL_value;
+        val = static_cast<int16_t>((static_cast<int16_t>(v << 2)) >> 2);
+        auto err = getStickyErrorFlags();
+        if (!(static_cast<uint16_t>(err) & retryMask)) break;
+    }
+    return val;
 }
 
-uint8_t AS5047U::getAGC() { 
-    return readReg<AS5047U_REG::AGC>().bits.AGC_value; 
+double AS5047U::getVelocityDegPerSec(uint8_t retries) {
+    return getVelocity(retries) * Velocity::DEG_PER_LSB;
 }
 
-uint16_t AS5047U::getMagnitude() { 
-    return readReg<AS5047U_REG::MAG>().bits.MAG_value; 
+double AS5047U::getVelocityRadPerSec(uint8_t retries) {
+    return getVelocity(retries) * Velocity::RAD_PER_LSB;
 }
 
-uint16_t AS5047U::getErrorFlags() { 
-    return readReg<AS5047U_REG::ERRFL>().value; 
+double AS5047U::getVelocityRPM(uint8_t retries) {
+    return getVelocity(retries) * Velocity::RPM_PER_LSB;
+}
+
+uint8_t AS5047U::getAGC(uint8_t retries) {
+    uint8_t val = 0;
+    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
+    for (uint8_t i = 0; i <= retries; ++i) {
+        val = readReg<AS5047U_REG::AGC>().bits.AGC_value;
+        auto err = getStickyErrorFlags();
+        if (!(static_cast<uint16_t>(err) & retryMask)) break;
+    }
+    return val;
+}
+
+uint16_t AS5047U::getMagnitude(uint8_t retries) {
+    uint16_t val = 0;
+    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
+    for (uint8_t i = 0; i <= retries; ++i) {
+        val = readReg<AS5047U_REG::MAG>().bits.MAG_value;
+        auto err = getStickyErrorFlags();
+        if (!(static_cast<uint16_t>(err) & retryMask)) break;
+    }
+    return val;
+}
+
+uint16_t AS5047U::getErrorFlags(uint8_t retries) {
+    uint16_t val = 0;
+    for (uint8_t i = 0; i <= retries; ++i) {
+        val = readReg<AS5047U_REG::ERRFL>().value;
+        if (val == 0) break;
+    }
+    return val;
+}
+
+uint16_t AS5047U::getZeroPosition(uint8_t retries) {
+    uint8_t m = 0;
+    uint8_t l = 0;
+    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
+    
+    // First read ZPOSM with retries
+    for (uint8_t i = 0; i <= retries; ++i) {
+        m = readReg<AS5047U_REG::ZPOSM>().bits.ZPOSM_bits;
+        auto err = getStickyErrorFlags();
+        if (!(static_cast<uint16_t>(err) & retryMask)) break;
+    }
+    
+    // Then read ZPOSL with retries
+    for (uint8_t i = 0; i <= retries; ++i) {
+        l = readReg<AS5047U_REG::ZPOSL>().bits.ZPOSL_bits;
+        auto err = getStickyErrorFlags();
+        if (!(static_cast<uint16_t>(err) & retryMask)) break;
+    }
+    
+    return static_cast<uint16_t>((m << 6) | l);
 }
 
 void AS5047U::setZeroPosition(uint16_t angleOffset) {
@@ -87,16 +161,10 @@ void AS5047U::setZeroPosition(uint16_t angleOffset) {
     writeReg(l);
 }
 
-uint16_t AS5047U::getZeroPosition() const {
-    auto m = const_cast<AS5047U*>(this)->readReg<AS5047U_REG::ZPOSM>().bits.ZPOSM_bits;
-    auto l = const_cast<AS5047U*>(this)->readReg<AS5047U_REG::ZPOSL>().bits.ZPOSL_bits;
-    return static_cast<uint16_t>((m << 6) | l);
-}
-
-void AS5047U::setDirection(bool clockwise) {
+bool AS5047U::setDirection(bool clockwise, uint8_t retries) {
     auto s2 = readReg<AS5047U_REG::SETTINGS2>();
     s2.bits.DIR = clockwise ? 0 : 1;
-    writeReg(s2);
+    return writeReg(s2, retries);
 }
 
 void AS5047U::setABIResolution(uint8_t resolution_bits) {
@@ -400,78 +468,95 @@ uint16_t AS5047U::readRegister(uint16_t address) const {
     return result;
 }
 
-void AS5047U::writeRegister(uint16_t address, uint16_t value) const {
-    if (frameFormat == FrameFormat::SPI_16) {
-        // ---- 16-bit write (two frames) ----
-        // First frame: send address
-        uint16_t cmd = static_cast<uint16_t>(address & 0x3FFF);  // bit14=0 for write
-        uint8_t tx[2] = {
-            static_cast<uint8_t>(cmd >> 8),
-            static_cast<uint8_t>(cmd & 0xFF)
-        };
-        uint8_t rx_dummy[2];
-        spi.transfer(tx, rx_dummy, 2);
-        
-        // Second frame: send data payload
-        uint16_t dataFrame = value & 0x3FFF;
-        tx[0] = static_cast<uint8_t>(dataFrame >> 8);
-        tx[1] = static_cast<uint8_t>(dataFrame & 0xFF);
-        uint8_t rxDataResp[2];
-        spi.transfer(tx, rxDataResp, 2);
-        
-        // Check for errors from previous command
-        updateStickyErrors(readReg<AS5047U_REG::ERRFL>().value);
-    } 
-    else if (frameFormat == FrameFormat::SPI_24) {
-        // ---- 24-bit write with CRC ----
-        // First frame: send address with CRC
-        uint16_t cmdPayload = static_cast<uint16_t>((0 << 14) | (address & 0x3FFF));
-        uint8_t cmdCrc = computeCRC8(cmdPayload);
-        uint8_t txCmd[3] = {
-            static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x00),  // bit6=0 for write
-            static_cast<uint8_t>(address & 0xFF),
-            cmdCrc
-        };
-        uint8_t rxCmd[3];
-        spi.transfer(txCmd, rxCmd, 3);
-        
-        // Second frame: send data with CRC
-        uint16_t dataPayload = value & 0x3FFF;
-        uint8_t dataCrc = computeCRC8(dataPayload);
-        uint8_t txData[3] = {
-            static_cast<uint8_t>((dataPayload >> 8) & 0xFF),
-            static_cast<uint8_t>(dataPayload & 0xFF),
-            dataCrc
-        };
-        uint8_t rxData[3];
-        spi.transfer(txData, rxData, 3);
-    } 
-    else if (frameFormat == FrameFormat::SPI_32) {
-        // ---- 32-bit write with CRC and pad byte ----
-        // First frame: send address with CRC and pad
-        uint16_t cmdPayload = static_cast<uint16_t>((0 << 14) | (address & 0x3FFF));
-        uint8_t cmdCrc = computeCRC8(cmdPayload);
-        uint8_t txCmd[4] = {
-            padByte,
-            static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x00),  // bit6=0 for write
-            static_cast<uint8_t>(address & 0xFF),
-            cmdCrc
-        };
-        uint8_t rxCmd[4];
-        spi.transfer(txCmd, rxCmd, 4);
-        
-        // Second frame: send data with CRC and pad
-        uint16_t dataPayload = value & 0x3FFF;
-        uint8_t dataCrc = computeCRC8(dataPayload);
-        uint8_t txData[4] = {
-            padByte,
-            static_cast<uint8_t>((dataPayload >> 8) & 0xFF),
-            static_cast<uint8_t>(dataPayload & 0xFF),
-            dataCrc
-        };
-        uint8_t rxData[4];
-        spi.transfer(txData, rxData, 4);
+bool AS5047U::writeRegister(uint16_t address, uint16_t value, uint8_t retries) const {
+    bool success = false;
+    uint16_t errMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
+    for (uint8_t attempt = 0; attempt <= retries; ++attempt) {
+        if (frameFormat == FrameFormat::SPI_16) {
+            // ---- 16-bit write (two frames) ----
+            // First frame: send address
+            uint16_t cmd = static_cast<uint16_t>(address & 0x3FFF);  // bit14=0 for write
+            uint8_t tx[2] = {
+                static_cast<uint8_t>(cmd >> 8),
+                static_cast<uint8_t>(cmd & 0xFF)
+            };
+            uint8_t rx_dummy[2];
+            spi.transfer(tx, rx_dummy, 2);
+            
+            // Second frame: send data payload
+            uint16_t dataFrame = value & 0x3FFF;
+            tx[0] = static_cast<uint8_t>(dataFrame >> 8);
+            tx[1] = static_cast<uint8_t>(dataFrame & 0xFF);
+            uint8_t rxDataResp[2];
+            spi.transfer(tx, rxDataResp, 2);
+            
+            // Check for errors from previous command
+            auto err = readReg<AS5047U_REG::ERRFL>().value;
+            if (!(err & errMask)) { success = true; break; }
+            updateStickyErrors(err);
+        } 
+        else if (frameFormat == FrameFormat::SPI_24) {
+            // ---- 24-bit write with CRC ----
+            // First frame: send address with CRC
+            uint16_t cmdPayload = static_cast<uint16_t>((0 << 14) | (address & 0x3FFF));
+            uint8_t cmdCrc = computeCRC8(cmdPayload);
+            uint8_t txCmd[3] = {
+                static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x00),  // bit6=0 for write
+                static_cast<uint8_t>(address & 0xFF),
+                cmdCrc
+            };
+            uint8_t rxCmd[3];
+            spi.transfer(txCmd, rxCmd, 3);
+            
+            // Second frame: send data with CRC
+            uint16_t dataPayload = value & 0x3FFF;
+            uint8_t dataCrc = computeCRC8(dataPayload);
+            uint8_t txData[3] = {
+                static_cast<uint8_t>((dataPayload >> 8) & 0xFF),
+                static_cast<uint8_t>(dataPayload & 0xFF),
+                dataCrc
+            };
+            uint8_t rxData[3];
+            spi.transfer(txData, rxData, 3);
+            
+            // after write, check error flags
+            auto err = readReg<AS5047U_REG::ERRFL>().value;
+            if (!(err & errMask)) { success = true; break; }
+            updateStickyErrors(err);
+        } 
+        else if (frameFormat == FrameFormat::SPI_32) {
+            // ---- 32-bit write with CRC and pad byte ----
+            // First frame: send address with CRC and pad
+            uint16_t cmdPayload = static_cast<uint16_t>((0 << 14) | (address & 0x3FFF));
+            uint8_t cmdCrc = computeCRC8(cmdPayload);
+            uint8_t txCmd[4] = {
+                padByte,
+                static_cast<uint8_t>(((address >> 8) & 0x3F) | 0x00),  // bit6=0 for write
+                static_cast<uint8_t>(address & 0xFF),
+                cmdCrc
+            };
+            uint8_t rxCmd[4];
+            spi.transfer(txCmd, rxCmd, 4);
+            
+            // Second frame: send data with CRC and pad
+            uint16_t dataPayload = value & 0x3FFF;
+            uint8_t dataCrc = computeCRC8(dataPayload);
+            uint8_t txData[4] = {
+                padByte,
+                static_cast<uint8_t>((dataPayload >> 8) & 0xFF),
+                static_cast<uint8_t>(dataPayload & 0xFF),
+                dataCrc
+            };
+            uint8_t rxData[4];
+            spi.transfer(txData, rxData, 4);
+            
+            // after write, check error flags
+            auto err = readReg<AS5047U_REG::ERRFL>().value;
+            if (!(err & errMask)) { success = true; break; }
+            updateStickyErrors(err);
+        }
     }
+    return success;
 }
 
 uint8_t AS5047U::computeCRC8(uint16_t data16) const {
@@ -494,83 +579,7 @@ static_assert(AS5047U().computeCRC8(0x1234) == 0xB2, "CRC8(0x1234) should be 0xB
 //                       Public API: retry-enabled getters and status dump
 // ════════════════════════════════════════════════════════════════════════════════════════════
 
-uint16_t AS5047U::getAngle(uint8_t retries) {
-    uint16_t val = 0;
-    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
-    for (uint8_t i = 0; i <= retries; ++i) {
-        val = readReg<AS5047U_REG::ANGLECOM>().bits.ANGLECOM_value;
-        auto err = getStickyErrorFlags();
-        if (!(static_cast<uint16_t>(err) & retryMask)) break;
-    }
-    return val;
-}
-
-uint16_t AS5047U::getRawAngle(uint8_t retries) {
-    uint16_t val = 0;
-    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
-    for (uint8_t i = 0; i <= retries; ++i) {
-        val = readReg<AS5047U_REG::ANGLEUNC>().bits.ANGLEUNC_value;
-        auto err = getStickyErrorFlags();
-        if (!(static_cast<uint16_t>(err) & retryMask)) break;
-    }
-    return val;
-}
-
-int16_t AS5047U::getVelocity(uint8_t retries) {
-    int16_t val = 0;
-    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
-    for (uint8_t i = 0; i <= retries; ++i) {
-        auto v = readReg<AS5047U_REG::VEL>().bits.VEL_value;
-        val = static_cast<int16_t>((static_cast<int16_t>(v << 2)) >> 2);
-        auto err = getStickyErrorFlags();
-        if (!(static_cast<uint16_t>(err) & retryMask)) break;
-    }
-    return val;
-}
-
-double AS5047U::getVelocityDegPerSec(uint8_t retries) {
-    return getVelocity(retries) * Velocity::DEG_PER_LSB;
-}
-
-double AS5047U::getVelocityRadPerSec(uint8_t retries) {
-    return getVelocity(retries) * Velocity::RAD_PER_LSB;
-}
-
-double AS5047U::getVelocityRPM(uint8_t retries) {
-    return getVelocity(retries) * Velocity::RPM_PER_LSB;
-}
-
-uint8_t AS5047U::getAGC(uint8_t retries) {
-    uint8_t val = 0;
-    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
-    for (uint8_t i = 0; i <= retries; ++i) {
-        val = readReg<AS5047U_REG::AGC>().bits.AGC_value;
-        auto err = getStickyErrorFlags();
-        if (!(static_cast<uint16_t>(err) & retryMask)) break;
-    }
-    return val;
-}
-
-uint16_t AS5047U::getMagnitude(uint8_t retries) {
-    uint16_t val = 0;
-    constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
-    for (uint8_t i = 0; i <= retries; ++i) {
-        val = readReg<AS5047U_REG::MAG>().bits.MAG_value;
-        auto err = getStickyErrorFlags();
-        if (!(static_cast<uint16_t>(err) & retryMask)) break;
-    }
-    return val;
-}
-
-uint16_t AS5047U::getErrorFlags(uint8_t retries) {
-    uint16_t val = 0;
-    for (uint8_t i = 0; i <= retries; ++i) {
-        val = readReg<AS5047U_REG::ERRFL>().value;
-        if (val == 0) break;
-    }
-    return val;
-}
-
+// Complete dumpStatus with full register dump
 void AS5047U::dumpStatus() const {
     printf("\n=== AS5047U Comprehensive Status ===\n");
     // Core measurements

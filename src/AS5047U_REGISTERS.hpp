@@ -23,7 +23,8 @@
  * for easier programmatic access.
  * 
  * @author Nebiyu Tadesse
- * @date 2025
+ * @copyright Copyright (c) 2025 Nebiyu Tadesse
+ * @license GNU GPL v3 or later
  */
 
 #pragma once

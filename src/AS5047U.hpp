@@ -169,8 +169,10 @@ public:
     
     /**
      * @brief Get the currently configured soft zero position offset (14-bit).
+     * @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     * @return The current zero position in LSB (0-16383).
      */
-    [[nodiscard]] uint16_t getZeroPosition() const;
+    [[nodiscard]] uint16_t getZeroPosition(uint8_t retries = 0) const;
     
     /**
      * @brief Set a new zero reference position (soft offset).
@@ -180,10 +182,12 @@ public:
     
     /**
      * @brief Define the rotation direction for increasing angle.
-     * @param clockwise If true, clockwise rotation yields increasing angle (DIR=0). 
+     * @param clockwise If true, clockwise rotation yields increasing angle (DIR=0).
      *                  If false, invert direction (DIR=1).
+     * @param retries Number of retries on CRC/framing error (default 0 = no retry).
+     * @return true if register write succeeded.
      */
-    void setDirection(bool clockwise);
+    bool setDirection(bool clockwise, uint8_t retries = 0);
     
     /**
      * @brief Set the ABI (incremental encoder) resolution.
@@ -317,12 +321,13 @@ public:
      *
      * @tparam RegT The register type which must have an ADDRESS static member and be encodable
      * @param reg The register object containing the data to be written
-     *
-     * This method takes a register object, encodes it using the encode() function,
-     * and writes the encoded value to the register's address using the writeRegister() method.
+     * @param retries Number of retries on CRC/framing error (default 0 = no retry)
+     * @return true if write succeeded, false on CRC/framing error
      */
     template <typename RegT>
-    void writeReg(const RegT& reg) { writeRegister(RegT::ADDRESS, encode(reg)); }
+    bool writeReg(const RegT& reg, uint8_t retries = 0) {
+        return writeRegister(RegT::ADDRESS, encode(reg), retries);
+    }
 
     /**
      * @brief Retrieve and clear the accumulated sticky error flags.
@@ -335,7 +340,7 @@ private:
      // Low-level helpers
      //------------------------------------------------------------------
     uint16_t readRegister(uint16_t addr) const;
-    void     writeRegister(uint16_t addr, uint16_t val) const;
+    bool     writeRegister(uint16_t addr, uint16_t val, uint8_t retries) const;
 
     spiBus      &spi;         ///< reference to user-supplied SPI driver
     FrameFormat  frameFormat; ///< current SPI frame format
@@ -352,4 +357,14 @@ private:
     
     mutable std::atomic<uint16_t> stickyErrors{0};  ///< sticky error bits since last clear
     void updateStickyErrors(uint16_t errfl) const;
+
+    // SPI_16-bit frame read implementation
+    bool readReg16(uint16_t reg, uint16_t &out, bool retry);
+    // SPI_16-bit frame write implementation
+    bool writeReg16(uint16_t reg, uint16_t data, bool retry);
+
+    // SPI_24-bit frame read implementation
+    bool readReg24(uint16_t reg, uint32_t &out, bool retry);
+    // SPI_24-bit frame write implementation
+    bool writeReg24(uint16_t reg, uint32_t data, bool retry);
 };
