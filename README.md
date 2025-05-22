@@ -22,7 +22,7 @@ Typical applications include replacing optical encoders or resolvers in servo an
 This C++ driver implements a class `AS5047U` that encapsulates all major sensor features in a clear, type-safe API. The core components of the library are:  
 
 - **`AS5047U` class:** High-level interface for reading angles, velocity, diagnostics, and configuring the sensor.  
-- **Register definitions:** A generated header (e.g. `AS5047U_REGISTERS.hpp`) contains `struct` definitions for each sensor register (volatile and OTP).  
+- **Register definitions:** A header (`AS5047U_REGISTERS.hpp`) contains `struct` definitions for each sensor register (volatile and OTP).  
 - **FrameFormat enum:** An `enum class FrameFormat { SPI_16, SPI_24, SPI_32 }` selects the SPI frame size.  
 - **Virtual SPI interface:** The abstract class `spiBus` defines a single pure-virtual method `transfer(tx, rx, len)`.
 
