@@ -3,16 +3,20 @@
 Hardware Agnostic AS5047U library - as used in the HardFOC-V1 controller
 
 ## AS5047U Sensor Overview  
-The **AS5047U** is a high‑resolution, 14‑bit on‑axis magnetic rotary position sensor that provides absolute angle measurements over a full 360° range. It features integrated **Dynamic Angle Error Compensation (DAEC)** for low latency at high speeds, plus a Dynamic Filter System (DFS) to reduce noise at low speed. The sensor outputs a 14‑bit angle (0–16383 LSBs per revolution) over a standard 4‑wire SPI interface (24‑ or 32‑bit frames include an 8‑bit CRC). In addition to SPI, the AS5047U provides **incre...
-
+The **AS5047U** is a high-resolution magnetic rotary position sensor providing fast absolute angle measurements over a full 360° rotation. It outputs a 14-bit digital angle (16384 counts per revolution) via a standard 4-wire SPI interface, with optional 8-bit CRC for reliability. Integrated Dynamic Angle Error Compensation (DAEC) and an adaptive Dynamic Filter System (DFS™) ensure low latency and reduced noise across speed ranges, while inherent immunity to homogeneous external stray magnetic fields enhances robustness.  
+Beyond SPI, the AS5047U also offers configurable incremental encoder outputs (A, B, I) up to 4096 pulses per revolution, a 3-phase commutation interface (UVW) with programmable pole pairs, and a PWM-encoded absolute angle output.  
+Typical applications include replacing optical encoders or resolvers in servo and BLDC/PMSM motor control, robotics, and any system demanding precise, fast shaft-angle feedback.  
+*
 **Key Sensor Features:**  
-- **Absolute angle:** 14‑bit resolution (0–16383 counts per rev) for full 360°.  
-- **ABI encoder output:** Configurable incremental (A/B/I) signals up to 14‑bit resolution.  
-- **UVW interface:** Three-phase commutation outputs for BLDC motors (1–7 pole pairs).  
-- **PWM output:** Programmable PWM-encoded angle on a single pin.  
-- **DAEC and filtering:** Dynamic Angle Error Compensation and adaptive filtering for improved accuracy.  
-- **Diagnostics:** Internal gain (AGC) and magnetic field magnitude readings, plus error flags (CRC, framing, etc.).  
-- **OTP memory:** Programmable nonvolatile registers for zero position, counts, settings, with verification.  
+- **Absolute angle:** 14-bit digital output (0–16383 counts per rev) with optional 8-bit CRC for SPI frames.  
+- **Dynamic Angle Error Compensation (DAEC):** Low-latency correction at high speed.  
+- **Adaptive Filter System (DFS™):** Noise reduction at low speed.  
+- **Stray-field immunity:** Robust against homogeneous external magnetic interference.  
+- **Incremental encoder (ABI):** Configurable A/B/I outputs up to 4096 pulses per revolution.  
+- **UVW commutation:** 3-phase outputs with 1–7 programmable pole pairs.  
+- **PWM output:** Programmable PWM-encoded absolute angle on a single pin.  
+- **Diagnostics:** Real-time AGC and magnitude readings plus sticky/transient error flags (CRC, framing, ECC, etc.).  
+- **OTP memory:** One-time programmable non-volatile registers for zero position and settings, with guard-band verification. *
 
 ## Library Architecture  
 This C++ driver implements a class `AS5047U` that encapsulates all major sensor features in a clear, type-safe API. The core components of the library are:  

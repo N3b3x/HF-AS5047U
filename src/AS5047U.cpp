@@ -149,44 +149,30 @@ uint16_t AS5047U::getZeroPosition(uint8_t retries) {
     return static_cast<uint16_t>((m << 6) | l);
 }
 
-void AS5047U::setZeroPosition(uint16_t angleOffset) {
-    angleOffset &= 0x3FFF;
-    AS5047U_REG::ZPOSM m{}; 
-    m.bits.ZPOSM_bits = (angleOffset >> 6) & 0xFF;
-    
-    AS5047U_REG::ZPOSL l{}; 
-    l.bits.ZPOSL_bits = angleOffset & 0x3F;
-    
-    writeReg(m); 
-    writeReg(l);
+bool AS5047U::setZeroPosition(uint16_t angleLSB, uint8_t retries) {
+    AS5047U_REG::ZPOSM m{}; m.bits.ZPOSM_bits = (angleLSB >> 6) & 0xFF;
+    AS5047U_REG::ZPOSL l{}; l.bits.ZPOSL_bits = angleLSB & 0x3F;
+    return writeReg(m, retries) && writeReg(l, retries);
 }
 
-bool AS5047U::setDirection(bool clockwise, uint8_t retries) {
+bool AS5047U::setABIResolution(uint8_t resolutionBits, uint8_t retries) {
+    resolutionBits = std::clamp(resolutionBits, uint8_t(10), uint8_t(14));
+    auto s3 = readReg<AS5047U_REG::SETTINGS3>();
+    s3.bits.ABIRES = static_cast<uint8_t>(resolutionBits - 10);
+    return writeReg(s3, retries);
+}
+
+bool AS5047U::setUVWPolePairs(uint8_t pairs, uint8_t retries) {
+    pairs = std::clamp(pairs, uint8_t(1), uint8_t(7));
+    auto s3 = readReg<AS5047U_REG::SETTINGS3>();
+    s3.bits.UVWPP = static_cast<uint8_t>(pairs - 1);
+    return writeReg(s3, retries);
+}
+
+bool AS5047U::setIndexPulseLength(uint8_t lsbLen, uint8_t retries) {
     auto s2 = readReg<AS5047U_REG::SETTINGS2>();
-    s2.bits.DIR = clockwise ? 0 : 1;
+    s2.bits.IWIDTH = (lsbLen == 1) ? 1 : 0;
     return writeReg(s2, retries);
-}
-
-void AS5047U::setABIResolution(uint8_t resolution_bits) {
-    resolution_bits = std::clamp<uint8_t>(resolution_bits, 10, 14);
-    auto s3 = readReg<AS5047U_REG::SETTINGS3>();
-    // ABIRES encoding: 0->12bit (10+2), so code = resolution_bits - 10
-    s3.bits.ABIRES = static_cast<uint8_t>(resolution_bits - 10);
-    writeReg(s3);
-}
-
-void AS5047U::setUVWPolePairs(uint8_t polePairs) {
-    polePairs = std::clamp<uint8_t>(polePairs, 1, 7);
-    auto s3 = readReg<AS5047U_REG::SETTINGS3>();
-    // UVWPP encoding: code 0->1pp, so code = polePairs - 1
-    s3.bits.UVWPP = static_cast<uint8_t>(polePairs - 1);
-    writeReg(s3);
-}
-
-void AS5047U::setIndexPulseLength(uint8_t pulseLengthLSB) {
-    auto s2 = readReg<AS5047U_REG::SETTINGS2>();
-    s2.bits.IWIDTH = (pulseLengthLSB == 1) ? 1 : 0;
-    writeReg(s2);
 }
 
 // Truth table for configureInterface():
@@ -200,48 +186,44 @@ void AS5047U::setIndexPulseLength(uint8_t pulseLengthLSB) {
 // |  0  |  0  |  1  |   -       |   PWM      |
 // |  0  |  0  |  0  |   -       |   -        |
 //
-void AS5047U::configureInterface(bool abi, bool uvw, bool pwm) {
+bool AS5047U::configureInterface(bool abi, bool uvw, bool pwm, uint8_t retries) {
     auto dis = readReg<AS5047U_REG::DISABLE>();
     auto s2  = readReg<AS5047U_REG::SETTINGS2>();
     dis.bits.ABI_off = abi ? 0 : 1;
     dis.bits.UVW_off = uvw ? 0 : 1;
     if (abi && !uvw) {
-        s2.bits.UVW_ABI = 0;
-        s2.bits.PWMon   = pwm;
+        s2.bits.UVW_ABI = 0; s2.bits.PWMon = pwm;
     } else if (!abi && uvw) {
-        s2.bits.UVW_ABI = 1;
-        s2.bits.PWMon   = pwm;
+        s2.bits.UVW_ABI = 1; s2.bits.PWMon = pwm;
     } else {
-        s2.bits.PWMon   = pwm;
-        s2.bits.UVW_ABI = 0;
+        s2.bits.UVW_ABI = 0; s2.bits.PWMon = pwm;
     }
-    writeReg(dis); writeReg(s2);
+    return writeReg(dis, retries) && writeReg(s2, retries);
 }
 
-void AS5047U::setDynamicAngleCompensation(bool enable) {
+bool AS5047U::setDynamicAngleCompensation(bool enable, uint8_t retries) {
     auto s2 = readReg<AS5047U_REG::SETTINGS2>();
     s2.bits.DAECDIS = enable ? 0 : 1;
-    writeReg(s2);
+    return writeReg(s2, retries);
 }
 
-void AS5047U::setAdaptiveFilter(bool enable) {
+bool AS5047U::setAdaptiveFilter(bool enable, uint8_t retries) {
     auto dis = readReg<AS5047U_REG::DISABLE>();
     dis.bits.FILTER_disable = enable ? 0 : 1;
-    writeReg(dis);
+    return writeReg(dis, retries);
 }
 
-void AS5047U::setFilterParameters(uint8_t k_min, uint8_t k_max) {
-    k_min = std::min<uint8_t>(k_min, 7); k_max = std::min<uint8_t>(k_max, 7);
+bool AS5047U::setFilterParameters(uint8_t k_min, uint8_t k_max, uint8_t retries) {
+    k_min = std::min(k_min, uint8_t(7)); k_max = std::min(k_max, uint8_t(7));
     auto s1 = readReg<AS5047U_REG::SETTINGS1>();
-    s1.bits.K_min = k_min;
-    s1.bits.K_max = k_max;
-    writeReg(s1);
+    s1.bits.K_min = k_min; s1.bits.K_max = k_max;
+    return writeReg(s1, retries);
 }
 
-void AS5047U::set150CTemperatureMode(bool enable) {
+bool AS5047U::set150CTemperatureMode(bool enable, uint8_t retries) {
     auto s2 = readReg<AS5047U_REG::SETTINGS2>();
     s2.bits.NOISESET = enable ? 1 : 0;
-    writeReg(s2);
+    return writeReg(s2, retries);
 }
 
 bool AS5047U::programOTP() {
@@ -336,10 +318,10 @@ AS5047U_Error AS5047U::getStickyErrorFlags() {
 // Public API implementations
 void AS5047U::setPad(uint8_t pad) noexcept { padByte = pad; }
 
-void AS5047U::setHysteresis(AS5047U_REG::SETTINGS3::Hysteresis hys) {
+bool AS5047U::setHysteresis(AS5047U_REG::SETTINGS3::Hysteresis hys, uint8_t retries) {
     auto s3 = readReg<AS5047U_REG::SETTINGS3>();
     s3.bits.HYS = static_cast<uint8_t>(hys);
-    writeReg(s3);
+    return writeReg(s3, retries);
 }
 
 AS5047U_REG::SETTINGS3::Hysteresis AS5047U::getHysteresis() const {
@@ -347,10 +329,10 @@ AS5047U_REG::SETTINGS3::Hysteresis AS5047U::getHysteresis() const {
     return static_cast<AS5047U_REG::SETTINGS3::Hysteresis>(s3.bits.HYS);
 }
 
-void AS5047U::setAngleOutputSource(AS5047U_REG::SETTINGS2::AngleOutputSource src) {
+bool AS5047U::setAngleOutputSource(AS5047U_REG::SETTINGS2::AngleOutputSource src, uint8_t retries) {
     auto s2 = readReg<AS5047U_REG::SETTINGS2>();
     s2.bits.Data_select = static_cast<uint8_t>(src);
-    writeReg(s2);
+    return writeReg(s2, retries);
 }
 
 AS5047U_REG::SETTINGS2::AngleOutputSource AS5047U::getAngleOutputSource() const {

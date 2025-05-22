@@ -178,7 +178,7 @@ public:
      * @brief Set a new zero reference position (soft offset).
      * @param angleLSB 14-bit angle value that should be treated as 0°.
      */
-    void setZeroPosition(uint16_t angleLSB);
+    bool setZeroPosition(uint16_t angleLSB, uint8_t retries = 0);
     
     /**
      * @brief Define the rotation direction for increasing angle.
@@ -193,20 +193,20 @@ public:
      * @brief Set the ABI (incremental encoder) resolution.
      * @param resolutionBits Resolution in bits (10 to 14 bits).
      */
-    void setABIResolution(uint8_t resolutionBits);
+    bool setABIResolution(uint8_t resolutionBits, uint8_t retries = 0);
     
     /**
      * @brief Set the number of pole pairs for UVW commutation outputs.
      * @param pairs Number of pole pairs (1-7).
      */
-    void setUVWPolePairs(uint8_t pairs);
+    bool setUVWPolePairs(uint8_t pairs, uint8_t retries = 0);
     
     /**
      * @brief Set the index pulse width for ABI output.
      * @param lsbLen Index pulse length in LSB periods (3 or 1).
      */
-    void setIndexPulseLength(uint8_t lsbLen);
-    
+    bool setIndexPulseLength(uint8_t lsbLen, uint8_t retries = 0);
+
     /**
      * @brief Configure interface outputs (ABI, UVW) and PWM output.
      *
@@ -220,16 +220,16 @@ public:
      * @param uvw Enable UVW commutation outputs.
      * @param pwm Enable PWM output on the appropriate pin (W if UVW disabled, I if ABI disabled).
      */
-    void configureInterface(bool abi, bool uvw, bool pwm);
+    bool configureInterface(bool abi, bool uvw, bool pwm, uint8_t retries = 0);
     
     /** @brief Enable/disable Dynamic Angle Error Compensation (DAEC). */
-    void setDynamicAngleCompensation(bool enable);
+    bool setDynamicAngleCompensation(bool enable, uint8_t retries = 0);
     
     /** @brief Enable/disable the adaptive filter (Dynamic Filter System). */
-    void setAdaptiveFilter(bool enable);
+    bool setAdaptiveFilter(bool enable, uint8_t retries = 0);
     
     /** @brief Set adaptive filter parameters (K_min and K_max, 3-bit each). */
-    void setFilterParameters(uint8_t k_min, uint8_t k_max);
+    bool setFilterParameters(uint8_t k_min, uint8_t k_max, uint8_t retries = 0);
     
     /** @brief Set temperature mode for 150°C operation (NOISESET bit).
      *
@@ -238,7 +238,7 @@ public:
      *
      * @param enable True for 150°C mode (NOISESET=1), false for low-noise (NOISESET=0).
      */
-    void set150CTemperatureMode(bool enable);
+    bool set150CTemperatureMode(bool enable, uint8_t retries = 0);
     
     /**
      * @brief Permanently program current settings into OTP memory.
@@ -274,7 +274,7 @@ public:
      *   - SETTINGS3::Hysteresis::LSB_3 (0b10): 3 LSB deadband (~0.52°)
      *   - SETTINGS3::Hysteresis::NONE  (0b11): No hysteresis
      */
-    void setHysteresis(AS5047U_REG::SETTINGS3::Hysteresis hys);
+    bool setHysteresis(AS5047U_REG::SETTINGS3::Hysteresis hys, uint8_t retries = 0);
     
     /**
      * @brief Get current incremental output hysteresis setting.
@@ -290,7 +290,7 @@ public:
      *   - SETTINGS2::AngleOutputSource::UseANGLECOM: read compensated angle (ANGLECOM)
      *   - SETTINGS2::AngleOutputSource::UseANGLEUNC: read raw angle (ANGLEUNC)
      */
-    void setAngleOutputSource(AS5047U_REG::SETTINGS2::AngleOutputSource src);
+    bool setAngleOutputSource(AS5047U_REG::SETTINGS2::AngleOutputSource src, uint8_t retries = 0);
 
     /**
      * @brief Get currently selected angle output source for 0x3FFF reads.
@@ -357,14 +357,4 @@ private:
     
     mutable std::atomic<uint16_t> stickyErrors{0};  ///< sticky error bits since last clear
     void updateStickyErrors(uint16_t errfl) const;
-
-    // SPI_16-bit frame read implementation
-    bool readReg16(uint16_t reg, uint16_t &out, bool retry);
-    // SPI_16-bit frame write implementation
-    bool writeReg16(uint16_t reg, uint16_t data, bool retry);
-
-    // SPI_24-bit frame read implementation
-    bool readReg24(uint16_t reg, uint32_t &out, bool retry);
-    // SPI_24-bit frame write implementation
-    bool writeReg24(uint16_t reg, uint32_t data, bool retry);
 };
