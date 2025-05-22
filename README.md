@@ -43,7 +43,7 @@ Users create a subclass of `spiBus` that implements `transfer()` using their pla
 
 ### ESP-IDF  
 ```cpp
-class ESPBus : public spiBus {
+class ESPBus : public AS5047U::spiBus {
     spi_device_handle_t dev;
 public:
     ESPBus(spi_device_handle_t handle) : dev(handle) {}
@@ -59,7 +59,7 @@ public:
 
 ### STM32 HAL  
 ```cpp
-class STM32Bus : public spiBus {
+class STM32Bus : public AS5047U::spiBus {
     SPI_HandleTypeDef *hspi;
 public:
     STM32Bus(SPI_HandleTypeDef *handle) : hspi(handle) {}
@@ -71,7 +71,7 @@ public:
 
 ### Arduino  
 ```cpp
-class ArduinoBus : public spiBus {
+class ArduinoBus : public AS5047U::spiBus {
 public:
     void transfer(const uint8_t *tx, uint8_t *rx, size_t len) override {
         SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1));
