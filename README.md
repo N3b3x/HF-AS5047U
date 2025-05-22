@@ -1,33 +1,34 @@
 # HF-AS5047U
 Hardware Agnostic AS5047U library - as used in the HardFOC-V1 controller
 
-# AS5047U C++ Driver Library
-## AS5047U Sensor Overview  
-The **AS5047U** is a high-resolution magnetic rotary position sensor providing fast absolute angle measurements over a full 360° rotation. It outputs a 14-bit digital angle (16384 counts per revolution) via a standard 4-wire SPI interface, with optional 8-bit CRC for reliability. Integrated Dynamic Angle Error Compensation (DAEC) and an adaptive Dynamic Filter System (DFS™) ensure low latency and reduced noise across speed ranges, while inherent immunity to homogeneous external stray magnetic fields enhances robustness.  
-Beyond SPI, the AS5047U also offers configurable incremental encoder outputs (A, B, I) up to 4096 pulses per revolution, a 3-phase commutation interface (UVW) with programmable pole pairs, and a PWM-encoded absolute angle output.  
-Typical applications include replacing optical encoders or resolvers in servo and BLDC/PMSM motor control, robotics, and any system demanding precise, fast shaft-angle feedback.  
+# AS5047U – C++ Driver Library
 
-**Key Sensor Features:**  
-- **Absolute angle:** 14-bit digital output (0–16383 counts per rev) with optional 8-bit CRC for SPI frames.  
-- **Dynamic Angle Error Compensation (DAEC):** Low-latency correction at high speed.  
-- **Adaptive Filter System (DFS™):** Noise reduction at low speed.  
-- **Stray-field immunity:** Robust against homogeneous external magnetic interference.  
-- **Incremental encoder (ABI):** Configurable A/B/I outputs up to 4096 pulses per revolution.  
-- **UVW commutation:** 3-phase outputs with 1–7 programmable pole pairs.  
-- **PWM output:** Programmable PWM-encoded absolute angle on a single pin.  
-- **Diagnostics:** Real-time AGC and magnitude readings plus sticky/transient error flags (CRC, framing, ECC, etc.).  
-- **OTP memory:** One-time programmable non-volatile registers for zero position and settings, with guard-band verification. *
+## 📦 Overview
+**HF-AS5047U** is a portable C++20 driver for the **AS5047U** magnetic encoder from ams. It delivers fast 14‑bit absolute angle readings over SPI, optional CRC protection and advanced features like Dynamic Angle Error Compensation (DAEC) and an adaptive Dynamic Filter System (DFS™). The sensor can also output incremental (A/B/I) and 3‑phase commutation (UVW) signals or a PWM encoded angle, making it a drop‑in replacement for optical encoders in high-performance motor control and robotics.
 
-## Library Architecture  
-This C++ driver implements a class `AS5047U` that encapsulates all major sensor features in a clear, type-safe API. The core components of the library are:  
+## 🚀 Sensor Highlights
+* **14‑bit absolute angle** with optional CRC check
+* **DAEC** for low‑latency angle correction
+* **DFS™** adaptive noise filtering
+* **Stray‑field immunity** for robust operation
+* **Incremental ABI** outputs up to 4096 PPR
+* **UVW commutation** with programmable pole pairs
+* **PWM output** option
+* **Diagnostics** for AGC, magnitude and error flags
+* **OTP memory** for permanent configuration
 
-- **`AS5047U` class:** High-level interface for reading angles, velocity, diagnostics, and configuring the sensor.  
-- **Register definitions:** A header (`AS5047U_REGISTERS.hpp`) contains `struct` definitions for each sensor register (volatile and OTP).  
-- **FrameFormat enum:** An `enum class FrameFormat { SPI_16, SPI_24, SPI_32 }` selects the SPI frame size.  
-- **Virtual SPI interface:** The abstract class `spiBus` defines a single pure-virtual method `transfer(tx, rx, len)`.
+---
 
-## SPI Bus Abstraction  
-A key feature of this driver is its **hardware-agnostic SPI interface**. The abstract class `spiBus` defines the interface:  
+## 🏗️ Library Architecture
+This library exposes a single `AS5047U` class that wraps all sensor functionality in a clear, type‑safe API. Key components include:
+
+* **`AS5047U` class** – high level interface
+* **Register definitions** in `AS5047U_REGISTERS.hpp`
+* **`FrameFormat` enum** to select 16/24/32‑bit SPI frames
+* **`spiBus` interface** – abstract SPI layer for platform independence
+
+### SPI Bus Abstraction
+Applications implement the virtual `spiBus` interface and plug it into the driver:
 
 ```cpp
 class spiBus {
@@ -37,9 +38,9 @@ public:
 };
 ```
 
-Users create a subclass of `spiBus` that implements `transfer()` using their platform’s SPI functions.
+The driver itself contains no hardware specifics – simply implement `transfer()` for your platform.
 
-## Platform Integration Examples  
+## 🔌 Platform Integration
 
 ### ESP-IDF  
 ```cpp
@@ -87,7 +88,32 @@ public:
 };
 ```
 
-## Using the Driver API  
+---
+
+## 📂 Project Structure
+
+```
+├── Datasheet/               # AS5047U datasheet PDF
+├── examples/                # Wiring and usage examples
+├── src/                     # Library sources
+│   ├── AS5047U.hpp          # Driver API
+│   ├── AS5047U.cpp          # Implementation
+│   └── AS5047U_REGISTERS.hpp# Register definitions
+├── tests/                   # Mock-based unit tests
+└── README.md                # This document
+```
+
+---
+
+## 🔧 Installation
+1. Copy `AS5047U.hpp`, `AS5047U.cpp` and `AS5047U_REGISTERS.hpp` into your project.
+2. Implement the `spiBus` interface for your platform.
+3. Include the header: `#include "AS5047U.hpp"`.
+4. Compile with a **C++20** or newer compiler.
+
+---
+
+## 🧠 Quick Start
 
 ```cpp
 AS5047U encoder(bus, FrameFormat::SPI_24);
@@ -121,7 +147,7 @@ Dump diagnostics:
 std::string status = encoder.dumpDiagnostics();
 ```  
 
-## API Reference  
+## 📟 API Summary
 
 | Function | Description |  
 |----------|-------------|  
@@ -136,8 +162,8 @@ std::string status = encoder.dumpDiagnostics();
 | uint8_t getAGC(uint8_t retries=0) | Read AGC (0–255) value |  
 | uint16_t getMagnitude(uint8_t retries=0) | Read magnetic field magnitude (0–16383) |  
 | uint16_t getErrorFlags(uint8_t retries=0) | Read and clear error/status flags |  
-| void dumpStatus() const | Print formatted status/diagnostics |  
-| uint16_t getZeroPosition(uint8_t retries=0) const | Get current zero offset |  
+| void dumpStatus() const | Print formatted status/diagnostics |
+| uint16_t getZeroPosition(uint8_t retries=0) const | Get current zero offset |
 | bool setZeroPosition(uint16_t angle, uint8_t retries=0) | Set new zero offset |  
 | bool setDirection(bool clockwise, uint8_t retries=0) | Set rotation direction (CW or CCW) |  
 | bool setABIResolution(uint8_t bits, uint8_t retries=0) | Set ABI output resolution (10–14 bits) |  
@@ -155,8 +181,23 @@ std::string status = encoder.dumpDiagnostics();
 | bool setAngleOutputSource(SETTINGS2::AngleOutputSource src, uint8_t retries=0) | Select angle output source (comp/raw) |  
 | SETTINGS2::AngleOutputSource getAngleOutputSource() const | Get selected angle output source |  
 | AS5047U_REG::DIA getDiagnostics() const | Read full diagnostic register (DIA) |  
+---
 
-## C++ Features and Requirements  
+## 🧪 Unit Testing
+Run the provided tests on a desktop system with:
+
+```bash
+g++ -std=c++20 src/AS5047U.cpp tests/test_as5047u.cpp -o test && ./test
+```
+
+The expected output is:
+
+```
+All tests passed
+```
+
+
+## C++ Features and Requirements
 This library requires a **C++20 (or later)** compiler. It uses:
 - `enum class`
 - `constexpr`
@@ -164,16 +205,24 @@ This library requires a **C++20 (or later)** compiler. It uses:
 - `[[nodiscard]]`
 - Modern structured typing
 
-## Installation  
-
-1. Copy `AS5047U.hpp`, `AS5047U.cpp`, and `AS5047U_REGISTERS.hpp` into your project.
-2. Include the headers: `#include "AS5047U.hpp"`
-3. Compile with `-std=c++20`
-4. Implement your `spiBus` class.
 
 
 
-
-## License  
-**GNU General Public License v3.0**  
+## License
+**GNU General Public License v3.0**
 You may use, modify, and redistribute this software under GPLv3.
+
+---
+
+## 🤝 Contributing
+Pull requests and feature ideas are welcome!
+1. Fork this repository
+2. Create a feature branch
+3. Commit your changes
+4. Open a PR
+
+## 🙌 Acknowledgments
+Developed for the HardFOC-V1 controller.
+
+## 💬 Support
+For questions or bug reports please open an issue.
