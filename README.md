@@ -119,7 +119,42 @@ bool ok = encoder.programOTP();
 Dump diagnostics:
 ```cpp
 std::string status = encoder.dumpDiagnostics();
-```
+```  
+
+## API Reference  
+
+| Function | Description |  
+|----------|-------------|  
+| AS5047U(spiBus &bus, FrameFormat fmt) | Constructor (SPI interface and frame format) |  
+| void setFrameFormat(FrameFormat fmt) | Set SPI frame format (16/24/32-bit mode) |  
+| uint16_t getAngle(uint8_t retries=0) | Read 14-bit compensated absolute angle |  
+| uint16_t getRawAngle(uint8_t retries=0) | Read 14-bit raw absolute angle |  
+| int16_t getVelocity(uint8_t retries=0) | Read signed 14-bit velocity (LSB units) |  
+| double getVelocityDegPerSec(uint8_t retries=0) | Velocity in degrees/sec |  
+| double getVelocityRadPerSec(uint8_t retries=0) | Velocity in radians/sec |  
+| double getVelocityRPM(uint8_t retries=0) | Velocity in revolutions per minute (RPM) |  
+| uint8_t getAGC(uint8_t retries=0) | Read AGC (0–255) value |  
+| uint16_t getMagnitude(uint8_t retries=0) | Read magnetic field magnitude (0–16383) |  
+| uint16_t getErrorFlags(uint8_t retries=0) | Read and clear error/status flags |  
+| void dumpStatus() const | Print formatted status/diagnostics |  
+| uint16_t getZeroPosition(uint8_t retries=0) const | Get current zero offset |  
+| bool setZeroPosition(uint16_t angle, uint8_t retries=0) | Set new zero offset |  
+| bool setDirection(bool clockwise, uint8_t retries=0) | Set rotation direction (CW or CCW) |  
+| bool setABIResolution(uint8_t bits, uint8_t retries=0) | Set ABI output resolution (10–14 bits) |  
+| bool setUVWPolePairs(uint8_t pairs, uint8_t retries=0) | Set UVW pole pairs (1–7) |  
+| bool setIndexPulseLength(uint8_t lsbLen, uint8_t retries=0) | Set ABI index pulse width |  
+| bool configureInterface(bool abi, bool uvw, bool pwm, uint8_t retries=0) | Enable/disable ABI, UVW, PWM |  
+| bool setDynamicAngleCompensation(bool enable, uint8_t retries=0) | Enable/disable DAEC |  
+| bool setAdaptiveFilter(bool enable, uint8_t retries=0) | Enable/disable adaptive filter (DFS) |  
+| bool setFilterParameters(uint8_t k_min, uint8_t k_max, uint8_t retries=0) | Set DFS filter parameters |  
+| bool set150CTemperatureMode(bool enable, uint8_t retries=0) | Enable 150°C (high-temp mode) |  
+| bool programOTP() | Program current settings into OTP (one-time) |  
+| void setPad(uint8_t pad) | Set pad byte for 32-bit SPI frames |  
+| bool setHysteresis(SETTINGS3::Hysteresis hys, uint8_t retries=0) | Set incremental hysteresis level |  
+| SETTINGS3::Hysteresis getHysteresis() const | Get current hysteresis setting |  
+| bool setAngleOutputSource(SETTINGS2::AngleOutputSource src, uint8_t retries=0) | Select angle output source (comp/raw) |  
+| SETTINGS2::AngleOutputSource getAngleOutputSource() const | Get selected angle output source |  
+| AS5047U_REG::DIA getDiagnostics() const | Read full diagnostic register (DIA) |  
 
 ## C++ Features and Requirements  
 This library requires a **C++20 (or later)** compiler. It uses:
@@ -135,6 +170,9 @@ This library requires a **C++20 (or later)** compiler. It uses:
 2. Include the headers: `#include "AS5047U.hpp"`
 3. Compile with `-std=c++20`
 4. Implement your `spiBus` class.
+
+
+
 
 ## License  
 **GNU General Public License v3.0**  
