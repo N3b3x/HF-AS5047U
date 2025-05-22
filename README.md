@@ -223,6 +223,11 @@ Pull requests and feature ideas are welcome!
 
 ## 🙌 Acknowledgments
 Developed for the HardFOC-V1 controller.
+- Developed by **Nebiyu Tadesse**, 2025.
+- Based on the official [AS5047U Datasheet](https://ams-osram.com/products/sensor-solutions/position-sensors/ams-as5047u-high-resolution-rotary-position-sensor) by ASM ASRAM.
+- Inspired by embedded needs for a reliable, testable AS5047U library.
+
 
 ## 💬 Support
-For questions or bug reports please open an issue.
+
+For questions, bug reports, or feature requests, please open an [issue](https://github.com/N3b3x/HF-AS5047U/issues) or contact the maintainer directly.
