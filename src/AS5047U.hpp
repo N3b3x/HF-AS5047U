@@ -22,6 +22,7 @@
 #include <bitset>
 #include <cmath>  // for M_PI and math functions
 #include <cstdio>  // for printf
+#include "AS5047U_REGISTERS.hpp"
 
 // Error flags from ERRFL register
 enum class AS5047U_Error : uint16_t {
