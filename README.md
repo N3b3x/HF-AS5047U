@@ -1,12 +1,12 @@
 # HF-AS5047U
-# AS5047U C++ Driver Library
 Hardware Agnostic AS5047U library - as used in the HardFOC-V1 controller
 
+# AS5047U C++ Driver Library
 ## AS5047U Sensor Overview  
 The **AS5047U** is a high-resolution magnetic rotary position sensor providing fast absolute angle measurements over a full 360° rotation. It outputs a 14-bit digital angle (16384 counts per revolution) via a standard 4-wire SPI interface, with optional 8-bit CRC for reliability. Integrated Dynamic Angle Error Compensation (DAEC) and an adaptive Dynamic Filter System (DFS™) ensure low latency and reduced noise across speed ranges, while inherent immunity to homogeneous external stray magnetic fields enhances robustness.  
 Beyond SPI, the AS5047U also offers configurable incremental encoder outputs (A, B, I) up to 4096 pulses per revolution, a 3-phase commutation interface (UVW) with programmable pole pairs, and a PWM-encoded absolute angle output.  
 Typical applications include replacing optical encoders or resolvers in servo and BLDC/PMSM motor control, robotics, and any system demanding precise, fast shaft-angle feedback.  
-*
+
 **Key Sensor Features:**  
 - **Absolute angle:** 14-bit digital output (0–16383 counts per rev) with optional 8-bit CRC for SPI frames.  
 - **Dynamic Angle Error Compensation (DAEC):** Low-latency correction at high speed.  
@@ -22,7 +22,7 @@ Typical applications include replacing optical encoders or resolvers in servo an
 This C++ driver implements a class `AS5047U` that encapsulates all major sensor features in a clear, type-safe API. The core components of the library are:  
 
 - **`AS5047U` class:** High-level interface for reading angles, velocity, diagnostics, and configuring the sensor.  
-- **Register definitions:** A generated header (e.g. `AS5047U_REGISTERS.hpp`) contains `struct` definitions for each sensor register (volatile and OTP).  
+- **Register definitions:** A header (`AS5047U_REGISTERS.hpp`) contains `struct` definitions for each sensor register (volatile and OTP).  
 - **FrameFormat enum:** An `enum class FrameFormat { SPI_16, SPI_24, SPI_32 }` selects the SPI frame size.  
 - **Virtual SPI interface:** The abstract class `spiBus` defines a single pure-virtual method `transfer(tx, rx, len)`.
 
