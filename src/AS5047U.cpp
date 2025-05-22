@@ -2,7 +2,7 @@
 #include <iomanip> // for std::hex and formatting
 
 // Inline function definitions
-inline void AS5047U::setFrameFormat(FrameFormat format) {
+inline void AS5047U::setFrameFormat(FrameFormat format) noexcept {
     frameFormat = format;
 }
 
@@ -127,7 +127,7 @@ uint16_t AS5047U::getErrorFlags(uint8_t retries) {
     return val;
 }
 
-uint16_t AS5047U::getZeroPosition(uint8_t retries) {
+uint16_t AS5047U::getZeroPosition(uint8_t retries) const {
     uint8_t m = 0;
     uint8_t l = 0;
     constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
