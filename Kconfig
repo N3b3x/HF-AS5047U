@@ -1,0 +1,34 @@
+menu "HF-AS5047U driver"
+
+config AS5047U
+    bool "Enable HF-AS5047U driver"
+    default y
+    help
+      Compile support for the HF-AS5047U magnetic encoder library.
+
+if AS5047U
+
+choice
+    prompt "Default SPI frame format"
+    default AS5047U_FRAME_24
+config AS5047U_FRAME_16
+    bool "16-bit frames"
+config AS5047U_FRAME_24
+    bool "24-bit frames"
+config AS5047U_FRAME_32
+    bool "32-bit frames"
+endchoice
+
+config AS5047U_CRC_RETRIES
+    int "CRC retry count"
+    default 0
+    help
+      Number of times to retry a transaction when a CRC mismatch occurs.
+
+config AS5047U_BUILD_TESTS
+    bool "Build unit tests"
+    default n
+
+endif # AS5047U
+
+endmenu

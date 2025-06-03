@@ -7,7 +7,7 @@ inline void AS5047U::setFrameFormat(FrameFormat format) noexcept {
 }
 
 // Constructor implementation
-AS5047U::AS5047U(AS5047U::spiBus &bus, FrameFormat frameFormat)
+AS5047U::AS5047U(AS5047U::spiBus &bus, FrameFormat frameFormat) noexcept
     : spi(bus), frameFormat(frameFormat) {
     // No further initialization (use sensor defaults unless configured).
 }
@@ -18,39 +18,13 @@ AS5047U::AS5047U(AS5047U::spiBus &bus, FrameFormat frameFormat)
 
 // Helper: encode/decode register value
 
-/**
- * @brief Anonymous namespace for SPI encoding and decoding functions.
- * 
- * Contains utility templates for converting between register types and raw uint16_t values
- * for SPI communication with the AS5047U magnetic encoder.
- */
-namespace {
-/**
- * @brief Encodes a register object to its raw 16-bit representation.
- * 
- * @tparam RegT The register type to encode.
- * @param r The register instance to encode.
- * @return uint16_t The raw 16-bit value representing the register.
- */
-template <typename RegT>
-static inline uint16_t encode(const RegT& r) { return r.value; }
-
-/**
- * @brief Decodes a raw 16-bit value into a typed register object.
- * 
- * @tparam RegT The register type to decode into.
- * @param raw The raw 16-bit value to decode.
- * @return RegT A register object with the given value.
- */
-template <typename RegT>
-static inline RegT decode(uint16_t raw) { RegT r{}; r.value = raw; return r; }
-}
+// Encoding/decoding helpers are defined inline in the header
 
 // ══════════════════════════════════════════════════════════════════════════════════════════
 //                                 PUBLIC HIGH-LEVEL API
 // ══════════════════════════════════════════════════════════════════════════════════════════
 
-uint16_t AS5047U::getAngle(uint8_t retries) {
+uint16_t AS5047U::getAngle(uint8_t retries) const {
     uint16_t val = 0;
     constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
     for (uint8_t i = 0; i <= retries; ++i) {
@@ -61,7 +35,7 @@ uint16_t AS5047U::getAngle(uint8_t retries) {
     return val;
 }
 
-uint16_t AS5047U::getRawAngle(uint8_t retries) {
+uint16_t AS5047U::getRawAngle(uint8_t retries) const {
     uint16_t val = 0;
     constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
     for (uint8_t i = 0; i <= retries; ++i) {
@@ -72,7 +46,7 @@ uint16_t AS5047U::getRawAngle(uint8_t retries) {
     return val;
 }
 
-int16_t AS5047U::getVelocity(uint8_t retries) {
+int16_t AS5047U::getVelocity(uint8_t retries) const {
     int16_t val = 0;
     constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
     for (uint8_t i = 0; i <= retries; ++i) {
@@ -84,19 +58,19 @@ int16_t AS5047U::getVelocity(uint8_t retries) {
     return val;
 }
 
-double AS5047U::getVelocityDegPerSec(uint8_t retries) {
+double AS5047U::getVelocityDegPerSec(uint8_t retries) const {
     return getVelocity(retries) * Velocity::DEG_PER_LSB;
 }
 
-double AS5047U::getVelocityRadPerSec(uint8_t retries) {
+double AS5047U::getVelocityRadPerSec(uint8_t retries) const {
     return getVelocity(retries) * Velocity::RAD_PER_LSB;
 }
 
-double AS5047U::getVelocityRPM(uint8_t retries) {
+double AS5047U::getVelocityRPM(uint8_t retries) const {
     return getVelocity(retries) * Velocity::RPM_PER_LSB;
 }
 
-uint8_t AS5047U::getAGC(uint8_t retries) {
+uint8_t AS5047U::getAGC(uint8_t retries) const {
     uint8_t val = 0;
     constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
     for (uint8_t i = 0; i <= retries; ++i) {
@@ -107,7 +81,7 @@ uint8_t AS5047U::getAGC(uint8_t retries) {
     return val;
 }
 
-uint16_t AS5047U::getMagnitude(uint8_t retries) {
+uint16_t AS5047U::getMagnitude(uint8_t retries) const {
     uint16_t val = 0;
     constexpr uint16_t retryMask = static_cast<uint16_t>(AS5047U_Error::CrcError) | static_cast<uint16_t>(AS5047U_Error::FramingError);
     for (uint8_t i = 0; i <= retries; ++i) {
@@ -118,7 +92,7 @@ uint16_t AS5047U::getMagnitude(uint8_t retries) {
     return val;
 }
 
-uint16_t AS5047U::getErrorFlags(uint8_t retries) {
+uint16_t AS5047U::getErrorFlags(uint8_t retries) const {
     uint16_t val = 0;
     for (uint8_t i = 0; i <= retries; ++i) {
         val = readReg<AS5047U_REG::ERRFL>().value;
@@ -310,7 +284,7 @@ void AS5047U::updateStickyErrors(uint16_t errfl) const {
     if (errfl & (1u << 10)) stickyErrors |= static_cast<uint16_t>(AS5047U_Error::CordicOverflow);
 }
  
-AS5047U_Error AS5047U::getStickyErrorFlags() {
+AS5047U_Error AS5047U::getStickyErrorFlags() const {
     uint16_t val = stickyErrors.exchange(0);
     return static_cast<AS5047U_Error>(val);
 }
@@ -541,21 +515,7 @@ bool AS5047U::writeRegister(uint16_t address, uint16_t value, uint8_t retries) c
     return success;
 }
 
-uint8_t AS5047U::computeCRC8(uint16_t data16) const {
-    // CRC-8 with polynomial 0x1D, initial value 0xC4, final XOR 0xFF
-    // Reference implementation: no reflection, final XOR 0xFF
-    uint8_t crc = 0xC4;
-    for (int i = 0; i < 16; ++i) {
-        bool bit = ((data16 >> (15 - i)) & 1) ^ ((crc >> 7) & 1);
-        crc = (crc << 1) ^ (bit ? 0x1D : 0x00);
-    }
-    crc ^= 0xFF;
-    return crc;
-}
-// CRC-8 self-test (static_asserts, will fail build if regression occurs)
-static_assert(AS5047U().computeCRC8(0x3FFF) == 0xF3, "CRC8(0x3FFF) should be 0xF3");
-static_assert(AS5047U().computeCRC8(0x0000) == 0x3B, "CRC8(0x0000) should be 0x3B");
-static_assert(AS5047U().computeCRC8(0x1234) == 0xB2, "CRC8(0x1234) should be 0xB2");
+
 
 // ════════════════════════════════════════════════════════════════════════════════════════════
 //                       Public API: retry-enabled getters and status dump
