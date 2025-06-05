@@ -202,7 +202,8 @@ int main() {
 
     assert(enc.setFilterParameters(2,3));
     auto s1 = bus.dev.regs[AS5047U_REG::SETTINGS1::ADDRESS];
-    assert((s1 & 0x7)==2 && ((s1>>3)&0x7)==3);
+    // expect K_min=2 (bits3..5) and K_max=3 (bits0..2)
+    assert((s1 & 0x7)==3 && ((s1>>3)&0x7)==2);
 
     assert(enc.set150CTemperatureMode(true));
     s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
