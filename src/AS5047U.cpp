@@ -322,7 +322,8 @@ AS5047U_REG::DIA AS5047U::getDiagnostics() const {
 //                           PRIVATE - COMMUNICATION API
 // ══════════════════════════════════════════════════════════════════════════════════════════
 
-uint16_t AS5047U::readRegister(uint16_t address) const {
+// Low level register read without sticky error update
+uint16_t AS5047U::rawReadRegister(uint16_t address) const {
     uint16_t result = 0;
     if (frameFormat == FrameFormat::SPI_16) {
         // ---- 16-bit frame without CRC ----
@@ -344,7 +345,6 @@ uint16_t AS5047U::readRegister(uint16_t address) const {
         
         // Process response
         uint16_t raw = (static_cast<uint16_t>(rxData[0]) << 8) | rxData[1];
-        updateStickyErrors(readReg<AS5047U_REG::ERRFL>().value);
         result = raw & 0x3FFF;  // Mask out status flags
     } 
     else if (frameFormat == FrameFormat::SPI_24) {
@@ -376,11 +376,9 @@ uint16_t AS5047U::readRegister(uint16_t address) const {
         uint16_t raw = (static_cast<uint16_t>(rxDataFrame[0]) << 8) | rxDataFrame[1];
         uint8_t crcDevice = rxDataFrame[2];
         uint8_t crcCalc = computeCRC8(raw);
-        
         if (crcDevice != crcCalc) {
-            updateStickyErrors(readReg<AS5047U_REG::ERRFL>().value);
+            // crc error, caller will read ERRFL
         }
-        
         result = raw & 0x3FFF;
     } 
     else if (frameFormat == FrameFormat::SPI_32) {
@@ -414,14 +412,20 @@ uint16_t AS5047U::readRegister(uint16_t address) const {
         uint16_t raw = (static_cast<uint16_t>(rxDataFrame[1]) << 8) | rxDataFrame[2];
         uint8_t crcDevice = rxDataFrame[3];
         uint8_t crcCalc = computeCRC8(raw);
-        
         if (crcDevice != crcCalc) {
-            updateStickyErrors(readReg<AS5047U_REG::ERRFL>().value);
+            // crc error, caller will read ERRFL
         }
-        
         result = raw & 0x3FFF;
     }
     return result;
+}
+
+// High level read that also fetches ERRFL to update sticky errors
+uint16_t AS5047U::readRegister(uint16_t address) const {
+    uint16_t val = rawReadRegister(address);
+    uint16_t err = rawReadRegister(AS5047U_REG::ERRFL::ADDRESS);
+    updateStickyErrors(err);
+    return val;
 }
 
 bool AS5047U::writeRegister(uint16_t address, uint16_t value, uint8_t retries) const {
