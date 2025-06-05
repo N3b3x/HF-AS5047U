@@ -371,3 +371,9 @@ private:
     template <typename RegT>
     static constexpr RegT decode(uint16_t raw) { RegT r{}; r.value = raw; return r; }
 };
+
+inline bool AS5047U::setDirection(bool clockwise, uint8_t retries) {
+    auto s2 = readReg<AS5047U_REG::SETTINGS2>();
+    s2.bits.DIR = clockwise ? 0 : 1;
+    return writeReg(s2, retries);
+}
