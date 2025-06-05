@@ -102,7 +102,8 @@ public:
 │   ├── AS5047U.hpp          # Driver API
 │   ├── AS5047U.cpp          # Implementation
 │   └── AS5047U_REGISTERS.hpp# Register definitions
-├── AS5047U_config.hpp       # Default build configuration
+├── include/                 # Public headers
+│   └── AS5047U_config.hpp   # Default build configuration
 ├── tests/                   # Mock-based unit tests
 ├── config.mk                # Makefile defaults
 └── README.md                # This document
@@ -120,8 +121,8 @@ Detailed step‑by‑step guides (with example command output) are available in 
 4. Compile with a **C++20** or newer compiler.
 5. Optionally build using the provided `Makefile`.
    Compiler flags can be overridden on the command line. Configuration
-   options such as default SPI frame format and CRC retries can be set
-   through `Kconfig` or by editing `AS5047U_config.hpp`.
+  options such as default SPI frame format and CRC retries can be set
+  through `Kconfig` or by editing `include/AS5047U_config.hpp`.
 
 ---
 
@@ -163,7 +164,7 @@ std::string status = encoder.dumpDiagnostics();
 Projects that use a Kconfig-based build system can include the
 provided `Kconfig` file. It exposes options such as the default SPI
 frame format and CRC retry count and also allows enabling the unit
-tests. When not using Kconfig, you can edit `AS5047U_config.hpp` to
+ tests. When not using Kconfig, you can edit `include/AS5047U_config.hpp` to
 set `AS5047U_CFG::DEFAULT_FRAME_FORMAT` and `AS5047U_CFG::CRC_RETRIES`.
 
 ## 📟 API Summary
