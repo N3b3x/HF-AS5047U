@@ -9,7 +9,7 @@ LIB := libas5047u.a
 
 TEST_SRC := tests/test_as5047u.cpp
 TEST_OBJ := $(TEST_SRC:.cpp=.o)
-TEST_BIN := test
+TEST_BIN := unit_tests
 
 .PHONY: all lib test clean
 
