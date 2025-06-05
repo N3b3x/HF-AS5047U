@@ -1,4 +1,4 @@
-# Using the Library
+# 📚 Using the Library
 
 This document shows how to integrate `HF-AS5047U` into your own project.
 
@@ -33,8 +33,8 @@ private:
 Pass your bus implementation and desired frame format to the constructor:
 
 ```cpp
-ArduinoBus bus(SPI, CS_PIN);
-AS5047U encoder(bus, FrameFormat::SPI_24);
+ArduinoBus bus(SPI, CS_PIN);                 // platform SPI wrapper
+AS5047U encoder(bus, FrameFormat::SPI_24);    // use 24-bit frames
 ```
 
 ## 3. Read Data
@@ -56,7 +56,7 @@ AGC: 128
 You can also read velocity in degrees per second:
 
 ```cpp
-double velDeg = encoder.getVelocityDegPerSec();
+double velDeg = encoder.getVelocityDegPerSec(); // velocity in deg/s
 ```
 
 Which might print something like `Velocity: 30.5 deg/s`.

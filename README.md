@@ -8,6 +8,11 @@ Hardware Agnostic AS5047U library - as used in the HardFOC-V1 controller
 
 ## 📦 Overview
 **HF-AS5047U** is a portable C++20 driver for the **AS5047U** magnetic encoder from ams. It delivers fast 14‑bit absolute angle readings over SPI, optional CRC protection and advanced features like Dynamic Angle Error Compensation (DAEC) and an adaptive Dynamic Filter System (DFS™). The sensor can also output incremental (A/B/I) and 3‑phase commutation (UVW) signals or a PWM encoded angle, making it a drop‑in replacement for optical encoders in high-performance motor control and robotics.
+### ✨ Key Features
+- 🧩 Cross-platform `spiBus` interface
+- 📐 Modern C++20 API
+- 📝 Examples for Arduino, ESP32 and STM32
+- 🧪 Unit tests for reliability
 
 ## 🚀 Sensor Highlights
 * **14‑bit absolute angle** with optional CRC check
@@ -114,49 +119,47 @@ Detailed step‑by‑step guides (with example command output) are available in 
 ---
 
 ## 🔧 Installation
-1. Copy `AS5047U.hpp`, `AS5047U.cpp` and `AS5047U_REGISTERS.hpp` into your project.
-2. Implement the `spiBus` interface for your platform.
-3. Include the header: `#include "AS5047U.hpp"`.
-4. Compile with a **C++20** or newer compiler.
-5. Optionally build using the provided `Makefile`.
-   Compiler flags can be overridden on the command line. Configuration
-   options such as default SPI frame format and CRC retries can be set
-   through `Kconfig` or by editing `AS5047U_config.hpp`.
+- 📥 Copy `AS5047U.hpp`, `AS5047U.cpp` and `AS5047U_REGISTERS.hpp` into your project
+- 🔌 Implement the `spiBus` interface for your platform
+- ➕ `#include "AS5047U.hpp"`
+- 🛠️ Compile with a **C++20** compiler
+- 🏗️ Optionally build with the provided `Makefile`
+  - Override compiler flags on the command line
+  - Configure default options via `Kconfig` or `AS5047U_config.hpp`
 
 ---
 
 ## 🧠 Quick Start
 
 ```cpp
-AS5047U encoder(bus, FrameFormat::SPI_24);
+AS5047U encoder(bus, FrameFormat::SPI_24); // driver using 24-bit frames
 
-uint16_t angle = encoder.getAngle();
-uint16_t rawAngle = encoder.getRawAngle();
-int16_t vel = encoder.getVelocity();
-double vel_dps = encoder.getVelocityDegPerSec();
+uint16_t angle = encoder.getAngle();        // compensated angle
+uint16_t rawAngle = encoder.getRawAngle();  // raw angle without DAEC
+int16_t vel = encoder.getVelocity();        // velocity in sensor units
+double vel_dps = encoder.getVelocityDegPerSec(); // velocity in deg/s
 
-uint8_t agc = encoder.getAGC();
-uint16_t mag = encoder.getMagnitude();
-uint16_t errors = encoder.getErrorFlags();
+uint8_t agc = encoder.getAGC();             // automatic gain control
+uint16_t mag = encoder.getMagnitude();      // magnetic magnitude
+uint16_t errors = encoder.getErrorFlags();  // current error flags
 ```
 
 Configure outputs:
 ```cpp
-encoder.setZeroPosition(8192);
-encoder.setDirection(false);
-encoder.setABIResolution(12);
-encoder.setUVWPolePairs(5);
-encoder.configureInterface(true, false, true);
+encoder.setZeroPosition(8192);            // set zero electrical angle
+encoder.setDirection(false);              // counter-clockwise = positive
+encoder.setABIResolution(12);             // 12-bit incremental output
+encoder.setUVWPolePairs(5);               // 5 electrical pole pairs
+encoder.configureInterface(true, false, true); // enable ABI + PWM
 ```
-
 Perform OTP programming:
 ```cpp
-bool ok = encoder.programOTP();
+bool ok = encoder.programOTP();  // write settings to OTP
 ```
 
 Dump diagnostics:
 ```cpp
-std::string status = encoder.dumpDiagnostics();
+std::string status = encoder.dumpDiagnostics(); // formatted status text
 ```
 
 ## ⚙️ Configuration

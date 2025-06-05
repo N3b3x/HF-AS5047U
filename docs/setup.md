@@ -1,12 +1,12 @@
-# Setup
+# 🛠️ Setup
 
 This guide walks you through preparing your environment and cloning the repository.
 
 ## Prerequisites
 
-- **C++20 compiler** (e.g. `g++` 10 or later)
-- **Make** utility
-- **Git** for cloning the sources
+- ✅ **C++20 compiler** (e.g. `g++` 10+)
+- ✅ **Make** utility
+- ✅ **Git** for cloning the sources
 
 These packages are available on most Linux distributions. On Debian/Ubuntu you can install them with:
 
@@ -18,7 +18,7 @@ sudo apt-get install build-essential git
 Verify that `g++` supports C++20:
 
 ```bash
-g++ --version
+g++ --version   # should report version 10 or later
 ```
 
 ## Cloning the Repository
