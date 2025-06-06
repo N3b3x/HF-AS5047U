@@ -354,7 +354,9 @@ private:
     //------------------------------------------------------------------
      // Low-level helpers
      //------------------------------------------------------------------
-    uint16_t readRegister(uint16_t addr) const;
+    // Low level register access helpers
+    uint16_t rawReadRegister(uint16_t addr) const;  ///< read register without updating sticky errors
+    uint16_t readRegister(uint16_t addr) const;     ///< read register and refresh sticky errors
     bool     writeRegister(uint16_t addr, uint16_t val, uint8_t retries) const;
 
     spiBus      &spi;         ///< reference to user-supplied SPI driver
