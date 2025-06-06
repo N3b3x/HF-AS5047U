@@ -8,6 +8,11 @@ Hardware Agnostic AS5047U library - as used in the HardFOC-V1 controller
 
 ## 📦 Overview
 **HF-AS5047U** is a portable C++20 driver for the **AS5047U** magnetic encoder from ams. It delivers fast 14‑bit absolute angle readings over SPI, optional CRC protection and advanced features like Dynamic Angle Error Compensation (DAEC) and an adaptive Dynamic Filter System (DFS™). The sensor can also output incremental (A/B/I) and 3‑phase commutation (UVW) signals or a PWM encoded angle, making it a drop‑in replacement for optical encoders in high-performance motor control and robotics.
+### ✨ Key Features
+- 🧩 Cross-platform `spiBus` interface
+- 📐 Modern C++20 API
+- 📝 Examples for Arduino, ESP32 and STM32
+- 🧪 Unit tests for reliability
 
 ## 🚀 Sensor Highlights
 * **14‑bit absolute angle** with optional CRC check
@@ -45,7 +50,7 @@ The driver itself contains no hardware specifics – simply implement `transfer(
 
 ## 🔌 Platform Integration
 
-### ESP-IDF  
+### ESP-IDF
 ```cpp
 class ESPBus : public AS5047U::spiBus {
     spi_device_handle_t dev;
@@ -61,7 +66,7 @@ public:
 };
 ```
 
-### STM32 HAL  
+### STM32 HAL
 ```cpp
 class STM32Bus : public AS5047U::spiBus {
     SPI_HandleTypeDef *hspi;
@@ -73,7 +78,7 @@ public:
 };
 ```
 
-### Arduino  
+### Arduino
 ```cpp
 class ArduinoBus : public AS5047U::spiBus {
 public:
@@ -114,49 +119,48 @@ Detailed step‑by‑step guides (with example command output) are available in 
 ---
 
 ## 🔧 Installation
-1. Copy `AS5047U.hpp`, `AS5047U.cpp` and `AS5047U_REGISTERS.hpp` into your project.
-2. Implement the `spiBus` interface for your platform.
-3. Include the header: `#include "AS5047U.hpp"`.
-4. Compile with a **C++20** or newer compiler.
-5. Optionally build using the provided `Makefile`.
-   Compiler flags can be overridden on the command line. Configuration
-   options such as default SPI frame format and CRC retries can be set
-   through `Kconfig` or by editing `AS5047U_config.hpp`.
+- 📥 Copy `AS5047U.hpp`, `AS5047U.cpp` and `AS5047U_REGISTERS.hpp` into your project
+- 🔌 Implement the `spiBus` interface for your platform
+- ➕ `#include "AS5047U.hpp"`
+- 🛠️ Compile with a **C++20** compiler
+- 🏗️ Optionally build with the provided `Makefile`
+  - Override compiler flags on the command line
+  - Configure default options via `Kconfig` or `AS5047U_config.hpp`
 
 ---
 
 ## 🧠 Quick Start
 
 ```cpp
-AS5047U encoder(bus, FrameFormat::SPI_24);
+// Instantiate the driver with your platform's SPI bus
+AS5047U encoder(bus, FrameFormat::SPI_24); // driver using 24-bit frames
 
-uint16_t angle = encoder.getAngle();
-uint16_t rawAngle = encoder.getRawAngle();
-int16_t vel = encoder.getVelocity();
-double vel_dps = encoder.getVelocityDegPerSec();
+uint16_t angle = encoder.getAngle();        // compensated angle
+uint16_t rawAngle = encoder.getRawAngle();  // raw angle without DAEC
+int16_t vel = encoder.getVelocity();        // velocity in sensor units
+double vel_dps = encoder.getVelocityDegPerSec(); // velocity in deg/s
 
-uint8_t agc = encoder.getAGC();
-uint16_t mag = encoder.getMagnitude();
-uint16_t errors = encoder.getErrorFlags();
+uint8_t agc = encoder.getAGC();             // automatic gain control
+uint16_t mag = encoder.getMagnitude();      // magnetic magnitude
+uint16_t errors = encoder.getErrorFlags();  // current error flags
 ```
 
 Configure outputs:
 ```cpp
-encoder.setZeroPosition(8192);
-encoder.setDirection(false);
-encoder.setABIResolution(12);
-encoder.setUVWPolePairs(5);
-encoder.configureInterface(true, false, true);
+encoder.setZeroPosition(8192);            // set zero electrical angle
+encoder.setDirection(false);              // counter-clockwise = positive
+encoder.setABIResolution(12);             // 12-bit incremental output
+encoder.setUVWPolePairs(5);               // 5 electrical pole pairs
+encoder.configureInterface(true, false, true); // enable ABI + PWM
 ```
-
 Perform OTP programming:
 ```cpp
-bool ok = encoder.programOTP();
+bool ok = encoder.programOTP();  // write settings to OTP
 ```
 
 Dump diagnostics:
 ```cpp
-std::string status = encoder.dumpDiagnostics();
+std::string status = encoder.dumpDiagnostics(); // formatted status text
 ```
 
 ## ⚙️ Configuration
@@ -168,38 +172,38 @@ set `AS5047U_CFG::DEFAULT_FRAME_FORMAT` and `AS5047U_CFG::CRC_RETRIES`.
 
 ## 📟 API Summary
 
-| Function | Description |  
-|----------|-------------|  
-| AS5047U(spiBus &bus, FrameFormat fmt) | Constructor (SPI interface and frame format) |  
-| void setFrameFormat(FrameFormat fmt) | Set SPI frame format (16/24/32-bit mode) |  
-| uint16_t getAngle(uint8_t retries=0) | Read 14-bit compensated absolute angle |  
-| uint16_t getRawAngle(uint8_t retries=0) | Read 14-bit raw absolute angle |  
-| int16_t getVelocity(uint8_t retries=0) | Read signed 14-bit velocity (LSB units) |  
-| double getVelocityDegPerSec(uint8_t retries=0) | Velocity in degrees/sec |  
-| double getVelocityRadPerSec(uint8_t retries=0) | Velocity in radians/sec |  
-| double getVelocityRPM(uint8_t retries=0) | Velocity in revolutions per minute (RPM) |  
-| uint8_t getAGC(uint8_t retries=0) | Read AGC (0–255) value |  
-| uint16_t getMagnitude(uint8_t retries=0) | Read magnetic field magnitude (0–16383) |  
-| uint16_t getErrorFlags(uint8_t retries=0) | Read and clear error/status flags |  
+| Function | Description |
+|----------|-------------|
+| AS5047U(spiBus &bus, FrameFormat fmt) | Constructor (SPI interface and frame format) |
+| void setFrameFormat(FrameFormat fmt) | Set SPI frame format (16/24/32-bit mode) |
+| uint16_t getAngle(uint8_t retries=0) | Read 14-bit compensated absolute angle |
+| uint16_t getRawAngle(uint8_t retries=0) | Read 14-bit raw absolute angle |
+| int16_t getVelocity(uint8_t retries=0) | Read signed 14-bit velocity (LSB units) |
+| double getVelocityDegPerSec(uint8_t retries=0) | Velocity in degrees/sec |
+| double getVelocityRadPerSec(uint8_t retries=0) | Velocity in radians/sec |
+| double getVelocityRPM(uint8_t retries=0) | Velocity in revolutions per minute (RPM) |
+| uint8_t getAGC(uint8_t retries=0) | Read AGC (0–255) value |
+| uint16_t getMagnitude(uint8_t retries=0) | Read magnetic field magnitude (0–16383) |
+| uint16_t getErrorFlags(uint8_t retries=0) | Read and clear error/status flags |
 | void dumpStatus() const | Print formatted status/diagnostics |
 | uint16_t getZeroPosition(uint8_t retries=0) const | Get current zero offset |
-| bool setZeroPosition(uint16_t angle, uint8_t retries=0) | Set new zero offset |  
-| bool setDirection(bool clockwise, uint8_t retries=0) | Set rotation direction (CW or CCW) |  
-| bool setABIResolution(uint8_t bits, uint8_t retries=0) | Set ABI output resolution (10–14 bits) |  
-| bool setUVWPolePairs(uint8_t pairs, uint8_t retries=0) | Set UVW pole pairs (1–7) |  
-| bool setIndexPulseLength(uint8_t lsbLen, uint8_t retries=0) | Set ABI index pulse width |  
-| bool configureInterface(bool abi, bool uvw, bool pwm, uint8_t retries=0) | Enable/disable ABI, UVW, PWM |  
-| bool setDynamicAngleCompensation(bool enable, uint8_t retries=0) | Enable/disable DAEC |  
-| bool setAdaptiveFilter(bool enable, uint8_t retries=0) | Enable/disable adaptive filter (DFS) |  
-| bool setFilterParameters(uint8_t k_min, uint8_t k_max, uint8_t retries=0) | Set DFS filter parameters |  
-| bool set150CTemperatureMode(bool enable, uint8_t retries=0) | Enable 150°C (high-temp mode) |  
-| bool programOTP() | Program current settings into OTP (one-time) |  
-| void setPad(uint8_t pad) | Set pad byte for 32-bit SPI frames |  
-| bool setHysteresis(SETTINGS3::Hysteresis hys, uint8_t retries=0) | Set incremental hysteresis level |  
-| SETTINGS3::Hysteresis getHysteresis() const | Get current hysteresis setting |  
-| bool setAngleOutputSource(SETTINGS2::AngleOutputSource src, uint8_t retries=0) | Select angle output source (comp/raw) |  
-| SETTINGS2::AngleOutputSource getAngleOutputSource() const | Get selected angle output source |  
-| AS5047U_REG::DIA getDiagnostics() const | Read full diagnostic register (DIA) |  
+| bool setZeroPosition(uint16_t angle, uint8_t retries=0) | Set new zero offset |
+| bool setDirection(bool clockwise, uint8_t retries=0) | Set rotation direction (CW or CCW) |
+| bool setABIResolution(uint8_t bits, uint8_t retries=0) | Set ABI output resolution (10–14 bits) |
+| bool setUVWPolePairs(uint8_t pairs, uint8_t retries=0) | Set UVW pole pairs (1–7) |
+| bool setIndexPulseLength(uint8_t lsbLen, uint8_t retries=0) | Set ABI index pulse width |
+| bool configureInterface(bool abi, bool uvw, bool pwm, uint8_t retries=0) | Enable/disable ABI, UVW, PWM |
+| bool setDynamicAngleCompensation(bool enable, uint8_t retries=0) | Enable/disable DAEC |
+| bool setAdaptiveFilter(bool enable, uint8_t retries=0) | Enable/disable adaptive filter (DFS) |
+| bool setFilterParameters(uint8_t k_min, uint8_t k_max, uint8_t retries=0) | Set DFS filter parameters |
+| bool set150CTemperatureMode(bool enable, uint8_t retries=0) | Enable 150°C (high-temp mode) |
+| bool programOTP() | Program current settings into OTP (one-time) |
+| void setPad(uint8_t pad) | Set pad byte for 32-bit SPI frames |
+| bool setHysteresis(SETTINGS3::Hysteresis hys, uint8_t retries=0) | Set incremental hysteresis level |
+| SETTINGS3::Hysteresis getHysteresis() const | Get current hysteresis setting |
+| bool setAngleOutputSource(SETTINGS2::AngleOutputSource src, uint8_t retries=0) | Select angle output source (comp/raw) |
+| SETTINGS2::AngleOutputSource getAngleOutputSource() const | Get selected angle output source |
+| AS5047U_REG::DIA getDiagnostics() const | Read full diagnostic register (DIA) |
 ---
 
 ## 🧪 Unit Testing
