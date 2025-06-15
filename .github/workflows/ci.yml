@@ -1,117 +1,103 @@
-name: CI Build and Analysis
+name: CI \u2022 Build \u00b7 Size \u00b7 Static Analyse
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  IDF_TARGET: esp32
+  IDF_TARGET: esp32c6
+  BUILD_PATH: ci_project
+  ESP_IDF_VERSIONS: '["release-v5.5"]'
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
     name: Build \u279c ${{ matrix.idf_version }} \u00b7 ${{ matrix.build_type }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        idf_version: [ release-v5.5 ]
-        build_type: [ Release, Debug ]
+        idf_version: [release-v5.5]
+        build_type: [Release, Debug]
+
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install clang-format
+      - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y clang-format
 
-      - name: Format Check
-        run: clang-format --dry-run --Werror $(git ls-files '*.c' '*.cpp' '*.h' '*.hpp')
+      - name: Format check
+        run: clang-format --dry-run --Werror src/*.hpp src/*.cpp examples/esp32/main/*.cpp
 
-      - name: Prepare ESP-IDF project
-        run: |
-          rm -rf ci_project
-          mkdir -p ci_project/main
-          cat <<'EOF' > ci_project/CMakeLists.txt
-          cmake_minimum_required(VERSION 3.16)
-          include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-          project(as5047u_ci)
-          EOF
-          if [ -f examples/es32_basic_interface/main.cpp ]; then
-            cp examples/es32_basic_interface/main.cpp ci_project/main/main.cpp
-          elif [ -f examples/esp32_basic_interface/main.cpp ]; then
-            cp examples/esp32_basic_interface/main.cpp ci_project/main/main.cpp
-          else
-            cat <<'EOM' > ci_project/main/main.cpp
-            #include "AS5047U.hpp"
-            extern "C" void app_main() { (void)sizeof(AS5047U); }
-            EOM
-          fi
-          cat <<'EOF' > ci_project/main/CMakeLists.txt
-          idf_component_register(
-              SRCS "main.cpp" "../../src/AS5047U.cpp"
-              INCLUDE_DIRS "." "../../include" "../../src"
-          )
-          EOF
-
-      - name: Build and Validate
+      - name: ESP-IDF build
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: ${{ matrix.idf_version }}
           target: ${{ env.IDF_TARGET }}
           path: .
           command: |
-            idf.py -B ci_project/build -C ci_project -D CMAKE_BUILD_TYPE=${{ matrix.build_type }} build
-            idf.py -B ci_project/build -C ci_project size
-            idf.py -B ci_project/build -C ci_project size-components
-            idf.py -B ci_project/build -C ci_project size-files
-            idf.py -B ci_project/build -C ci_project size-json
+            idf.py create-project ${{ env.BUILD_PATH }}
+            cp examples/esp32/CMakeLists.txt ${{ env.BUILD_PATH }}/CMakeLists.txt
+            sed -i "s|../../components|../components|" ${{ env.BUILD_PATH }}/CMakeLists.txt
+            rm -rf ${{ env.BUILD_PATH }}/main
+            cp -r examples/esp32/main ${{ env.BUILD_PATH }}/main
+            idf.py -C ${{ env.BUILD_PATH }} -DIDF_TARGET=${{ env.IDF_TARGET }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} build
+            idf.py -C ${{ env.BUILD_PATH }} size-components > ${{ env.BUILD_PATH }}/build/size.txt
+            idf.py -C ${{ env.BUILD_PATH }} size --format json > ${{ env.BUILD_PATH }}/build/size.json
 
       - name: Upload artifacts
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: firmware-${{ matrix.idf_version }}-${{ matrix.build_type }}
-          retention-days: 7
+          name: fw-${{ matrix.idf_version }}-${{ matrix.build_type }}
+          retention-days: 14
           path: |
-            ci_project/build/*.bin
-            ci_project/build/*.elf
-            ci_project/build/*.map
-            ci_project/build/size*.txt
-            ci_project/build/size*.json
+            ${{ env.BUILD_PATH }}/build/*.bin
+            ${{ env.BUILD_PATH }}/build/*.elf
+            ${{ env.BUILD_PATH }}/build/*.map
+            ${{ env.BUILD_PATH }}/build/size.*
 
   static-analysis:
-    name: Static Analysis
+    if: github.event_name == 'pull_request'
+    name: Static analyse (cppcheck + clang-tidy)
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Run cppcheck
-        uses: deep5050/cppcheck-action@v3.0
+      - uses: deep5050/cppcheck-action@v3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           enable: all
           inconclusive: true
-          std: c++20
+          std: c99
+          include: main
 
-      - name: Run clang-tidy
-        uses: ZedThree/clang-tidy-review@v0.21.0
+      - uses: ZedThree/clang-tidy-review@v0.21.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config_file: .clang-tidy
 
   workflow-lint:
-    name: Lint Workflow
+    name: actionlint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
