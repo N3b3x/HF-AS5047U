@@ -1,15 +1,15 @@
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
+#include "AS5047U.hpp"
 #include "driver/spi_master.h"
 #include "esp_log.h"
-#include "AS5047U.hpp"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
 
 // SPI config
-#define PIN_NUM_MISO  12
-#define PIN_NUM_MOSI  11
-#define PIN_NUM_CLK   10
-#define PIN_NUM_CS     9
+#define PIN_NUM_MISO 12
+#define PIN_NUM_MOSI 11
+#define PIN_NUM_CLK 10
+#define PIN_NUM_CS 9
 
 static const char *TAG = "AS5047U_RTOS";
 
@@ -20,7 +20,8 @@ SemaphoreHandle_t spi_mutex = nullptr;
 // SPI wrapper subclass
 class ESPBus : public AS5047U::spiBus {
     spi_device_handle_t spi;
-public:
+
+  public:
     ESPBus(spi_device_handle_t handle) : spi(handle) {}
     void transfer(const uint8_t *tx, uint8_t *rx, size_t len) override {
         spi_transaction_t t = {};
@@ -33,20 +34,14 @@ public:
 
 // SPI and driver initialization
 void init_encoder() {
-    spi_bus_config_t buscfg = {
-        .miso_io_num = PIN_NUM_MISO,
-        .mosi_io_num = PIN_NUM_MOSI,
-        .sclk_io_num = PIN_NUM_CLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = 64
-    };
+    spi_bus_config_t buscfg = {.miso_io_num = PIN_NUM_MISO,
+                               .mosi_io_num = PIN_NUM_MOSI,
+                               .sclk_io_num = PIN_NUM_CLK,
+                               .quadwp_io_num = -1,
+                               .quadhd_io_num = -1,
+                               .max_transfer_sz = 64};
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 4 * 1000 * 1000,
-        .mode = 1,
-        .spics_io_num = PIN_NUM_CS,
-        .queue_size = 1
-    };
+        .clock_speed_hz = 4 * 1000 * 1000, .mode = 1, .spics_io_num = PIN_NUM_CS, .queue_size = 1};
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     spi_device_handle_t spi_dev;
