@@ -9,6 +9,6 @@ url: https://ams-osram.com/products/sensor-solutions/position-sensors/ams-as5047
 repository: https://github.com/N3b3x/hf-as5047u-driver
 issues: https://github.com/N3b3x/hf-as5047u-driver/issues
 include_dirs:
-  - ../../src
-  - ../../src/include
+  - ../../../src
+  - ../../../src/include
 ## Optional dependencies etc. But not required.
