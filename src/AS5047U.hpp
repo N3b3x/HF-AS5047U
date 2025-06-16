@@ -376,7 +376,9 @@ class AS5047U {
     void updateStickyErrors(uint16_t errfl) const;
 
     // Helper functions implemented inline for templates
-    template <typename RegT> static constexpr uint16_t encode(const RegT &r) { return r.value; }
+    template <typename RegT> static constexpr uint16_t encode(const RegT &r) {
+        return r.value;
+    }
 
     template <typename RegT> static constexpr RegT decode(uint16_t raw) {
         RegT r{};

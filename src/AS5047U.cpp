@@ -2,7 +2,9 @@
 #include <iomanip> // for std::hex and formatting
 
 // Inline function definitions
-inline void AS5047U::setFrameFormat(FrameFormat format) noexcept { frameFormat = format; }
+inline void AS5047U::setFrameFormat(FrameFormat format) noexcept {
+    frameFormat = format;
+}
 
 // Constructor implementation
 AS5047U::AS5047U(AS5047U::spiBus &bus, FrameFormat frameFormat) noexcept
@@ -319,7 +321,9 @@ AS5047U_Error AS5047U::getStickyErrorFlags() const {
 }
 
 // Public API implementations
-void AS5047U::setPad(uint8_t pad) noexcept { padByte = pad; }
+void AS5047U::setPad(uint8_t pad) noexcept {
+    padByte = pad;
+}
 
 bool AS5047U::setHysteresis(AS5047U_REG::SETTINGS3::Hysteresis hys, uint8_t retries) {
     auto s3 = readReg<AS5047U_REG::SETTINGS3>();
@@ -343,7 +347,9 @@ AS5047U_REG::SETTINGS2::AngleOutputSource AS5047U::getAngleOutputSource() const 
     return static_cast<AS5047U_REG::SETTINGS2::AngleOutputSource>(s2.bits.Data_select);
 }
 
-AS5047U_REG::DIA AS5047U::getDiagnostics() const { return readReg<AS5047U_REG::DIA>(); }
+AS5047U_REG::DIA AS5047U::getDiagnostics() const {
+    return readReg<AS5047U_REG::DIA>();
+}
 
 // ══════════════════════════════════════════════════════════════════════════════════════════
 //                           PRIVATE - COMMUNICATION API
