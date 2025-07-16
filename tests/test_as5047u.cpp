@@ -182,97 +182,164 @@ class MockBus : public AS5047U::spiBus {
 };
 
 // -----------------------------------------------------------------------------
-// Unit tests exercising the AS5047U API
+// Enhanced Unit tests for AS5047U API (FrameFormat, error, boundary, enums, output)
 // -----------------------------------------------------------------------------
 
-int main() {
+void test_all_frame_formats() {
+    for (FrameFormat fmt : {FrameFormat::SPI_16, FrameFormat::SPI_24, FrameFormat::SPI_32}) {
+        MockBus bus;
+        AS5047U enc(bus, fmt);
+        // Basic getters
+        assert(enc.getAngle() == 0x1111);
+        assert(enc.getRawAngle() == 0x2222);
+        assert(enc.getVelocity() == 0x0100);
+        assert(enc.getAGC() == 0x55);
+        assert(enc.getMagnitude() == 0x0AAA);
+        assert(enc.getErrorFlags() == 0);
+        // Setters
+        assert(enc.setZeroPosition(0x3333));
+        assert(bus.dev.regs[AS5047U_REG::ZPOSM::ADDRESS] == (0x3333 >> 6));
+        assert(bus.dev.regs[AS5047U_REG::ZPOSL::ADDRESS] == (0x3333 & 0x3F));
+        assert(enc.setDirection(false));
+        auto s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
+        assert(((s2 >> 2) & 1) == 1);
+        assert(enc.setABIResolution(12));
+        auto s3 = bus.dev.regs[AS5047U_REG::SETTINGS3::ADDRESS];
+        assert((s3 & 0xE0) >> 5 == (12 - 10));
+        assert(enc.setUVWPolePairs(5));
+        s3 = bus.dev.regs[AS5047U_REG::SETTINGS3::ADDRESS];
+        assert((s3 & 0x07) == (5 - 1));
+        assert(enc.setIndexPulseLength(1));
+        s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
+        assert((s2 & 0x01) == 1);
+        assert(enc.configureInterface(true, false, true));
+        auto dis = bus.dev.regs[AS5047U_REG::DISABLE::ADDRESS];
+        s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
+        assert(((dis >> 1) & 1) == 0 && ((dis >> 0) & 1) == 1);
+        assert((s2 & 0x80) >> 7 == 1);
+        assert(enc.setDynamicAngleCompensation(true));
+        s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
+        assert(((s2 >> 4) & 1) == 0);
+        assert(enc.setAdaptiveFilter(true));
+        dis = bus.dev.regs[AS5047U_REG::DISABLE::ADDRESS];
+        assert(((dis >> 6) & 1) == 0);
+        assert(enc.setFilterParameters(2, 3));
+        auto s1 = bus.dev.regs[AS5047U_REG::SETTINGS1::ADDRESS];
+        assert((s1 & 0x7) == 3 && ((s1 >> 3) & 0x7) == 2);
+        assert(enc.set150CTemperatureMode(true));
+        s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
+        assert(((s2 >> 1) & 1) == 1);
+        enc.setPad(0xAA);
+        assert(enc.setHysteresis(AS5047U_REG::SETTINGS3::Hysteresis::LSB_2));
+        s3 = bus.dev.regs[AS5047U_REG::SETTINGS3::ADDRESS];
+        assert(((s3 >> 3) & 0x3) == 1);
+        assert(enc.getHysteresis() == AS5047U_REG::SETTINGS3::Hysteresis::LSB_2);
+        assert(enc.setAngleOutputSource(AS5047U_REG::SETTINGS2::AngleOutputSource::UseANGLEUNC));
+        assert(enc.getAngleOutputSource() == AS5047U_REG::SETTINGS2::AngleOutputSource::UseANGLEUNC);
+        auto dia = enc.getDiagnostics();
+        assert(dia.value == 0x1234);
+        // Templated read/write
+        auto readS2 = enc.readReg<AS5047U_REG::SETTINGS2>();
+        assert(readS2.value == bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS]);
+        AS5047U_REG::SETTINGS2 wr = readS2;
+        wr.bits.PWMon = 0;
+        assert(enc.writeReg(wr));
+        assert(bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS] == (readS2.value & ~0x80));
+        // Program OTP sequence (simulation always succeeds)
+        assert(enc.programOTP());
+    }
+}
+
+void test_velocity_conversions() {
     MockBus bus;
     AS5047U enc(bus, FrameFormat::SPI_16);
-
-    // Basic getters
-    assert(enc.getAngle() == 0x1111);
-    assert(enc.getRawAngle() == 0x2222);
-    assert(enc.getVelocity() == 0x0100);
-    assert(enc.getAGC() == 0x55);
-    assert(enc.getMagnitude() == 0x0AAA);
-    assert(enc.getErrorFlags() == 0);
-
-    // Velocity conversions
     double dps = enc.getVelocityDegPerSec();
     double rps = enc.getVelocityRadPerSec();
     double rpm = enc.getVelocityRPM();
     assert(std::fabs(dps - (0x0100 * AS5047U::Velocity::DEG_PER_LSB)) < 1e-3);
     assert(std::fabs(rps - (0x0100 * AS5047U::Velocity::RAD_PER_LSB)) < 1e-3);
     assert(std::fabs(rpm - (0x0100 * AS5047U::Velocity::RPM_PER_LSB)) < 1e-3);
+}
 
-    // Configuration setters and getters
-    assert(enc.setZeroPosition(0x3333));
-    assert(bus.dev.regs[AS5047U_REG::ZPOSM::ADDRESS] == (0x3333 >> 6));
-    assert(bus.dev.regs[AS5047U_REG::ZPOSL::ADDRESS] == (0x3333 & 0x3F));
-
-    assert(enc.setDirection(false));
-    auto s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
-    assert(((s2 >> 2) & 1) == 1);
-
-    assert(enc.setABIResolution(12));
+void test_boundary_abi_uvw() {
+    MockBus bus;
+    AS5047U enc(bus, FrameFormat::SPI_16);
+    // ABI resolution below/above valid range
+    assert(enc.setABIResolution(8)); // should clamp to 10
     auto s3 = bus.dev.regs[AS5047U_REG::SETTINGS3::ADDRESS];
-    assert((s3 & 0xE0) >> 5 == (12 - 10));
-
-    assert(enc.setUVWPolePairs(5));
+    assert((s3 & 0xE0) >> 5 == 0); // 10-10=0
+    assert(enc.setABIResolution(15)); // should clamp to 14
     s3 = bus.dev.regs[AS5047U_REG::SETTINGS3::ADDRESS];
-    assert((s3 & 0x07) == (5 - 1));
-
-    assert(enc.setIndexPulseLength(1));
-    s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
-    assert((s2 & 0x01) == 1);
-
-    assert(enc.configureInterface(true, false, true));
-    auto dis = bus.dev.regs[AS5047U_REG::DISABLE::ADDRESS];
-    s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
-    assert(((dis >> 1) & 1) == 0 && ((dis >> 0) & 1) == 1);
-    assert((s2 & 0x80) >> 7 == 1);
-
-    assert(enc.setDynamicAngleCompensation(true));
-    s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
-    assert(((s2 >> 4) & 1) == 0);
-
-    assert(enc.setAdaptiveFilter(true));
-    dis = bus.dev.regs[AS5047U_REG::DISABLE::ADDRESS];
-    assert(((dis >> 6) & 1) == 0);
-
-    assert(enc.setFilterParameters(2, 3));
-    auto s1 = bus.dev.regs[AS5047U_REG::SETTINGS1::ADDRESS];
-    // expect K_min=2 (bits3..5) and K_max=3 (bits0..2)
-    assert((s1 & 0x7) == 3 && ((s1 >> 3) & 0x7) == 2);
-
-    assert(enc.set150CTemperatureMode(true));
-    s2 = bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS];
-    assert(((s2 >> 1) & 1) == 1);
-
-    enc.setPad(0xAA); // just call
-
-    assert(enc.setHysteresis(AS5047U_REG::SETTINGS3::Hysteresis::LSB_2));
+    assert((s3 & 0xE0) >> 5 == 4); // 14-10=4
+    // UVW pole pairs below/above valid range
+    assert(enc.setUVWPolePairs(0)); // should clamp to 1
     s3 = bus.dev.regs[AS5047U_REG::SETTINGS3::ADDRESS];
-    assert(((s3 >> 3) & 0x3) == 1);
-    assert(enc.getHysteresis() == AS5047U_REG::SETTINGS3::Hysteresis::LSB_2);
+    assert((s3 & 0x07) == 0); // 1-1=0
+    assert(enc.setUVWPolePairs(10)); // should clamp to 7
+    s3 = bus.dev.regs[AS5047U_REG::SETTINGS3::ADDRESS];
+    assert((s3 & 0x07) == 6); // 7-1=6
+}
 
-    assert(enc.setAngleOutputSource(AS5047U_REG::SETTINGS2::AngleOutputSource::UseANGLEUNC));
-    assert(enc.getAngleOutputSource() == AS5047U_REG::SETTINGS2::AngleOutputSource::UseANGLEUNC);
+void test_enum_settings() {
+    MockBus bus;
+    AS5047U enc(bus, FrameFormat::SPI_16);
+    // SETTINGS3::Hysteresis
+    for (int i = 0; i < 4; ++i) {
+        auto hys = static_cast<AS5047U_REG::SETTINGS3::Hysteresis>(i);
+        assert(enc.setHysteresis(hys));
+        assert(enc.getHysteresis() == hys);
+    }
+    // SETTINGS2::AngleOutputSource
+    for (int i = 0; i < 2; ++i) {
+        auto src = static_cast<AS5047U_REG::SETTINGS2::AngleOutputSource>(i);
+        assert(enc.setAngleOutputSource(src));
+        assert(enc.getAngleOutputSource() == src);
+    }
+}
 
-    auto dia = enc.getDiagnostics();
-    assert(dia.value == 0x1234);
+void test_error_and_sticky_flags() {
+    // Simulate CRC error and check sticky error flag
+    class ErrorBus : public AS5047U::spiBus {
+      public:
+        bool inject_crc_error = false;
+        SimulatedDevice dev;
+        void transfer(const uint8_t *tx, uint8_t *rx, std::size_t len) override {
+            dev.transfer(tx, rx, len);
+            if (inject_crc_error && len == 3) {
+                // Corrupt CRC byte for 24-bit frame
+                if (rx) rx[2] ^= 0xFF;
+            }
+        }
+    };
+    ErrorBus bus;
+    AS5047U enc(bus, FrameFormat::SPI_24);
+    bus.inject_crc_error = true;
+    // This should trigger a CRC error
+    (void)enc.getAngle();
+    auto sticky = enc.getStickyErrorFlags();
+    assert(static_cast<uint16_t>(sticky) & static_cast<uint16_t>(AS5047U_Error::CrcError));
+    // Sticky error should clear after read
+    assert(enc.getStickyErrorFlags() == AS5047U_Error::None);
+}
 
-    // Templated read/write
-    auto readS2 = enc.readReg<AS5047U_REG::SETTINGS2>();
-    assert(readS2.value == bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS]);
-    AS5047U_REG::SETTINGS2 wr = readS2;
-    wr.bits.PWMon = 0;
-    assert(enc.writeReg(wr));
-    assert(bus.dev.regs[AS5047U_REG::SETTINGS2::ADDRESS] == (readS2.value & ~0x80));
+void test_dump_status_output() {
+    MockBus bus;
+    AS5047U enc(bus, FrameFormat::SPI_16);
+    // Just check that dumpStatus() runs without crashing
+    enc.dumpStatus();
+}
 
-    // Program OTP sequence (simulation always succeeds)
-    assert(enc.programOTP());
+// -----------------------------------------------------------------------------
+// Unit tests exercising the AS5047U API
+// -----------------------------------------------------------------------------
 
-    std::cout << "All tests passed\n";
+int main() {
+    test_all_frame_formats();
+    test_velocity_conversions();
+    test_boundary_abi_uvw();
+    test_enum_settings();
+    test_error_and_sticky_flags();
+    test_dump_status_output();
+    std::cout << "All enhanced tests passed\n";
     return 0;
 }

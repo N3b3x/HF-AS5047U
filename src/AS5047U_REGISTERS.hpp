@@ -32,32 +32,32 @@
 #include <cstdint>
 
 namespace AS5047U_REG {
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                                                                                                                  //
-//   ██╗   ██╗ ██████╗ ██╗      █████╗ ████████╗██╗██╗     ███████╗ // ██║   ██║██╔═══██╗██║
-//   ██╔══██╗╚══██╔══╝██║██║     ██╔════╝                                                 // ██║
-//   ██║██║   ██║██║     ███████║   ██║   ██║██║     █████╗ // ╚██╗ ██╔╝██║   ██║██║     ██╔══██║
-//   ██║   ██║██║     ██╔══╝                                                   //
-//    ╚████╔╝ ╚██████╔╝███████╗██║  ██║   ██║   ██║███████╗███████╗ //
-//     ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚══════╝╚══════╝ //
-//                                                                                                                  //
-//   ██████╗ ███████╗ ██████╗ ██╗███████╗████████╗███████╗██████╗ ███████╗ //
-//   ██╔══██╗██╔════╝██╔════╝ ██║██╔════╝╚══██╔══╝██╔════╝██╔══██╗██╔════╝ // ██████╔╝█████╗  ██║
-//   ███╗██║███████╗   ██║   █████╗  ██████╔╝███████╗                                          //
-//   ██╔══██╗██╔══╝  ██║   ██║██║╚════██║   ██║   ██╔══╝  ██╔══██╗╚════██║ // ██║
-//   ██║███████╗╚██████╔╝██║███████║   ██║   ███████╗██║  ██║███████║ // ╚═╝  ╚═╝╚══════╝ ╚═════╝
-//   ╚═╝╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝                                          //
-//                                                                                                                  //
-//==================================================================================================================//
-//                                           VOLATILE REGISTERS //
-//==================================================================================================================//
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//                                                                           //
+//   ██╗   ██╗ ██████╗ ██╗      █████╗ ████████╗██╗██╗     ███████╗          //
+//   ██║   ██║██╔═══██╗██║     ██╔══██╗╚══██╔══╝██║██║     ██╔════╝          //
+//   ██║   ██║██║   ██║██║     ███████║   ██║   ██║██║     █████╗            //
+//   ╚██╗ ██╔╝██║   ██║██║     ██╔══██║   ██║   ██║██║     ██╔══╝            //
+//    ╚████╔╝ ╚██████╔╝███████╗██║  ██║   ██║   ██║███████╗███████╗          //
+//     ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚══════╝╚══════╝          //
+//                                                                           //
+//   ██████╗ ███████╗ ██████╗ ██╗███████╗████████╗███████╗██████╗ ███████╗   //
+//   ██╔══██╗██╔════╝██╔════╝ ██║██╔════╝╚══██╔══╝██╔════╝██╔══██╗██╔════╝   //
+//   ██████╔╝█████╗  ██║  ███╗██║███████╗   ██║   █████╗  ██████╔╝███████╗   //
+//   ██╔══██╗██╔══╝  ██║   ██║██║╚════██║   ██║   ██╔══╝  ██╔══██╗╚════██║   //
+//   ██║  ██║███████╗╚██████╔╝██║███████║   ██║   ███████╗██║  ██║███████║   //
+//   ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝   //
+//                                                                           //
+//===========================================================================//
+//                          VOLATILE REGISTERS                               //
+//===========================================================================//
+///////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief NOP – No Operation register (0x0000, default 0x0000)
  *
  * Address | Name | Default | Description
- * ------- | ---- | ------- | -----------
+ * ------- | ---- | ------- | --------------
  * 0x0000  | NOP  | 0x0000  | No operation
  *
  * @details The NOP register is used to perform a no-operation command. Reading or writing to this
@@ -76,22 +76,27 @@ struct NOP {
 /**
  * @brief ERRFL – Error Flag register (0x0001, default 0x0000)
  *
- * Bits | Name                    | R  | Description
- * ---- | ----------------------- | -- |
- * ------------------------------------------------------------------------------- 0    |
- * AGC_warning             | R  | AGC at limit flag (1 = AGC value reached 0 or 255, indicating
- * extreme magnetic field) 1    | MagHalf                 | R  | Magnetic field half error (1 =
- * AGC=255 and measured magnitude ~ half of target) 2    | P2RAM_warning           | R  | OTP shadow
- * (P2RAM) single-bit correction flag (ECC corrected one bit) 3    | P2RAM_error             | R  |
- * OTP shadow (P2RAM) double-bit error flag (uncorrectable ECC error) 4    | Framing_error | R  |
- * SPI framing error (bad SPI frame alignment) 5    | Command_error           | R  | SPI command
- * error (invalid SPI command received) 6    | CRC_error               | R  | SPI CRC communication
- * error (CRC checksum mismatch) 7    | WDTST                   | R  | Watchdog failure (1 =
- * internal oscillator or watchdog test failed) 8    | (unused)                | -  | Unused bit
- * (always 0) 9    | OffCompNotFinished      | R  | Offset compensation not finished (1 = internal
- * offset calibration still in progress) 10   | CORDIC_Overflow         | R  | CORDIC overflow error
- * flag (numerical overflow in CORDIC cord. calc) 11-15| (reserved)              | -  | Reserved
- * (reads 0)
+ * Bits | Name                | R  | Description
+ * -----|---------------------|----|----------------------------------------------
+ * 0    | AGC_warning         | R  | AGC at limit flag (1 = AGC value reached 0 or 255,
+ *      |                     |    | indicating extreme magnetic field)
+ * 1    | MagHalf             | R  | Magnetic field half error (1 = AGC=255 and measured
+ *      |                     |    | magnitude ~ half of target)
+ * 2    | P2RAM_warning       | R  | OTP shadow (P2RAM) single-bit correction flag (ECC
+ *      |                     |    | corrected one bit)
+ * 3    | P2RAM_error         | R  | OTP shadow (P2RAM) double-bit error flag (uncorrectable
+ *      |                     |    | ECC error)
+ * 4    | Framing_error       | R  | SPI framing error (bad SPI frame alignment)
+ * 5    | Command_error       | R  | SPI command error (invalid SPI command received)
+ * 6    | CRC_error           | R  | SPI CRC communication error (CRC checksum mismatch)
+ * 7    | WDTST               | R  | Watchdog failure (1 = internal oscillator or watchdog
+ *      |                     |    | test failed)
+ * 8    | (unused)            | -  | Unused bit (always 0)
+ * 9    | OffCompNotFinished  | R  | Offset compensation not finished (1 = internal offset
+ *      |                     |    | calibration still in progress)
+ * 10   | CORDIC_Overflow     | R  | CORDIC overflow error flag (numerical overflow in
+ *      |                     |    | CORDIC cord. calc)
+ * 11-15| (reserved)          | -  | Reserved (reads 0)
  *
  * @note Reading the ERRFL register clears all the error flags (self-clearing on read). In case any
  * error flag is set, it is recommended to read the DIA (Diagnostic) register for more detailed
@@ -122,24 +127,27 @@ struct ERRFL {
  * @brief PROG – OTP programming control register (0x0003, default 0x0000)
  *
  * Bits | Name      | R/W | Description
- * ---- | --------- | --- |
- * ------------------------------------------------------------------------- 0    | PROGEN    | R/W
- * | OTP program enable (0 = Normal operation, 1 = Enable OTP read/write access) 1    | (reserved)|
- * -   | Reserved (must be 0) 2    | OTPREF    | R/W | OTP refresh trigger (1 = refresh shadow
- * registers with OTP content) 3    | PROGOTP   | R/W | Start OTP programming cycle (set 1 to begin
- * burning OTP fuses) 4    | (reserved)| -   | Reserved (must be 0) 5    | (reserved)| -   |
- * Reserved (must be 0) 6    | PROGVER   | R/W | Program verify mode enable (1 = enable guard-band
- * verification mode) 7-15 | (reserved)| -   | Reserved (must be 0)
+ * -----|-----------|-----|----------------------------------------------
+ * 0    | PROGEN    | R/W | OTP program enable (0 = Normal operation, 1 = Enable OTP
+ *      |           |     | read/write access)
+ * 1    | (reserved)| -   | Reserved (must be 0)
+ * 2    | OTPREF    | R/W | OTP refresh trigger (1 = refresh shadow registers with OTP
+ *      |           |     | content)
+ * 3    | PROGOTP   | R/W | Start OTP programming cycle (set 1 to begin burning OTP fuses)
+ * 4    | (reserved)| -   | Reserved (must be 0)
+ * 5    | (reserved)| -   | Reserved (must be 0)
+ * 6    | PROGVER   | R/W | Program verify mode enable (1 = enable guard-band verification mode)
+ * 7-15 | (reserved)| -   | Reserved (must be 0)
  *
  * @details Writing this register controls the OTP programming sequence:
  * - Set **PROGEN=1** to enable OTP programming mode (allow OTP registers 0x0015–0x001B to be
- * written).
+ *   written).
  * - Then set **PROGOTP=1** to initiate the OTP burn procedure. The PROGOTP bit will self-clear when
- * the programming cycle completes.
+ *   the programming cycle completes.
  * - The **PROGVER** bit can be set to 1 to enter verification mode (guard band test) after
- * programming.
+ *   programming.
  * - Toggling **OTPREF** (e.g., set to 1) reloads the non-volatile data from OTP into the device's
- * shadow registers (useful after programming or to revert soft writes).
+ *   shadow registers (useful after programming or to revert soft writes).
  *
  * After starting a programming cycle, the host should poll the PROG register until it reads 0x0001,
  * indicating the procedure is complete (PROGEN remains set, other bits cleared). It is recommended
@@ -168,32 +176,31 @@ struct PROG {
  * @brief DIA – Diagnostic register (0x3FF5, read-only)
  *
  * Bits | Name               | R | Description
- * ---- | ------------------ | - |
- * ------------------------------------------------------------------------------- 0    | VDD_mode
- * | R | Supply voltage mode (0 = 3.3V operation mode, 1 = 5V operation mode) 1    | LoopsFinished
- * | R | Magneto-mechanical loops finished (1 = all internal startup loops complete) 2    |
- * CORDIC_overflow_flag | R | CORDIC overflow error flag (1 = CORDIC arithmetic overflow occurred)
- * 3    | Comp_l             | R | AGC low *warning* flag (1 = magnetic field *strong* – AGC near 0)
- * 4    | Comp_h             | R | AGC high *warning* flag (1 = magnetic field *weak* – AGC near
- * 255) 5    | MagHalf_flag       | R | Magnitude half-range error flag (1 = measured MAG below half
- * of target) 6    | CosOff_fin         | R | Cosine offset compensation finished (1 = cosine offset
- * calib complete) 7    | SinOff_fin         | R | Sine offset compensation finished (1 = sine
- * offset calib complete) 8    | OffComp_finished   | R | Offset compensation finished flag (0 =
- * still running, 1 = completed) 9    | AGC_finished       | R | AGC initialization finished (1 =
- * initial gain calibration complete) 10   | (unused)           | - | Unused bit (always 0) 11-12|
- * SPI_cnt            | R | SPI frame counter (2-bit rolling count of consecutive SPI frames) 13-15|
- * (reserved)         | - | Reserved (reads 0)
- *
- * @details The DIA register provides detailed status and diagnostic flags. Many of these flags
- * correspond to whether internal calibration processes have completed or whether certain conditions
- * are at warning levels. For example, **AGC_finished** indicates the automatic gain control initial
- * settling is done, and **OffComp_finished** indicates the zero-angle offset compensation routine
- * is done.
- * **Comp_h** and **Comp_l** are warning flags showing the AGC is at the high or low end (magnet too
- * weak or strong), while **MagHalf_flag** mirrors the MagHalf error (magnetic field half) status.
- * The 2-bit **SPI_cnt** increments with each SPI frame, which can help detect communication
- * synchronization issues.
- * **VDD_mode** simply reflects the detected supply range (3.3V vs 5V) of the device.
+ * -----|--------------------|---|----------------------------------------------
+ * 0    | VDD_mode           | R | Supply voltage mode (0 = 3.3V operation mode,
+ *      |                    |   | 1 = 5V operation mode)
+ * 1    | LoopsFinished      | R | Magneto-mechanical loops finished (1 = all internal
+ *      |                    |   | startup loops complete)
+ * 2    | CORDIC_overflow_flag| R| CORDIC overflow error flag (1 = CORDIC arithmetic
+ *      |                    |   | overflow occurred)
+ * 3    | Comp_l             | R | AGC low *warning* flag (1 = magnetic field *strong* –
+ *      |                    |   | AGC near 0)
+ * 4    | Comp_h             | R | AGC high *warning* flag (1 = magnetic field *weak* –
+ *      |                    |   | AGC near 255)
+ * 5    | MagHalf_flag       | R | Magnitude half-range error flag (1 = measured MAG below
+ *      |                    |   | half of target)
+ * 6    | CosOff_fin         | R | Cosine offset compensation finished (1 = cosine offset
+ *      |                    |   | calib complete)
+ * 7    | SinOff_fin         | R | Sine offset compensation finished (1 = sine offset
+ *      |                    |   | calib complete)
+ * 8    | OffComp_finished   | R | Offset compensation finished flag (0 = still running,
+ *      |                    |   | 1 = completed)
+ * 9    | AGC_finished       | R | AGC initialization finished (1 = initial gain calibration
+ *      |                    |   | complete)
+ * 10   | (unused)           | - | Unused bit (always 0)
+ * 11-12| SPI_cnt            | R | SPI frame counter (2-bit rolling count of consecutive
+ *      |                    |   | SPI frames)
+ * 13-15| (reserved)         | - | Reserved (reads 0)
  */
 struct DIA {
     static constexpr uint16_t ADDRESS = 0x3FF5;
@@ -402,29 +409,38 @@ struct ANGLECOM {
     };
 };
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                                                                                                                  //
-//   ███╗   ██╗ ██████╗ ███╗   ██╗      ██╗   ██╗ ██████╗ ██╗      █████╗ ████████╗██╗██╗ ███████╗
-//   // ████╗  ██║██╔═══██╗████╗  ██║      ██║   ██║██╔═══██╗██║     ██╔══██╗╚══██╔══╝██║██║
-//   ██╔════╝              // ██╔██╗ ██║██║   ██║██╔██╗ ██║      ██║   ██║██║   ██║██║     ███████║
-//   ██║   ██║██║     █████╗                // ██║╚██╗██║██║   ██║██║╚██╗██║      ╚██╗ ██╔╝██║
-//   ██║██║     ██╔══██║   ██║   ██║██║     ██╔══╝                // ██║ ╚████║╚██████╔╝██║ ╚████║
-//   ╚████╔╝ ╚██████╔╝███████╗██║  ██║   ██║   ██║███████╗███████╗              // ╚═╝  ╚═══╝
-//   ╚═════╝ ╚═╝  ╚═══╝        ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚══════╝╚══════╝ //
-//                                                                                                                  //
-//   ██████╗ ███████╗ ██████╗ ██╗███████╗████████╗███████╗██████╗ ███████╗    ██╗ ██████╗
-//   ████████╗██████╗ ██╗      // ██╔══██╗██╔════╝██╔════╝
-//   ██║██╔════╝╚══██╔══╝██╔════╝██╔══██╗██╔════╝    ██║██╔═══██╗╚══██╔══╝██╔══██╗██║      //
-//   ██████╔╝█████╗  ██║  ███╗██║███████╗   ██║   █████╗  ██████╔╝███████╗    ██║██║   ██║   ██║
-//   ██████╔╝██║      // ██╔══██╗██╔══╝  ██║   ██║██║╚════██║   ██║   ██╔══╝  ██╔══██╗╚════██║
-//   ╚═╝██║   ██║   ██║   ██╔═══╝ ╚═╝      // ██║  ██║███████╗╚██████╔╝██║███████║   ██║ ███████╗██║
-//   ██║███████║    ██╗╚██████╔╝   ██║   ██║     ██╗      // ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝╚══════╝
-//   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝    ╚═╝ ╚═════╝    ╚═╝   ╚═╝     ╚═╝      //
-//                                                                                                                  //
-//==================================================================================================================//
-//                                      NON-VOLATILE REGISTERS (OTP) //
-//==================================================================================================================//
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////                                                                            //
+//   ███╗   ██╗ ██████╗ ███╗   ██╗                                             //
+//   ████╗  ██║██╔═══██╗████╗  ██║                                             //
+//   ██╔██╗ ██║██║   ██║██╔██╗ ██║                                             //
+//   ██║╚██╗██║██║   ██║██║╚██╗██║                                             //
+//   ██║ ╚████║╚██████╔╝██║ ╚████║                                             //
+//   ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═══╝                                             //
+//                                                                             //
+//   ██╗   ██╗ ██████╗ ██╗      █████╗ ████████╗██╗██╗     ███████╗            //
+//   ██║   ██║██╔═══██╗██║     ██╔══██╗╚══██╔══╝██║██║     ██╔════╝            //
+//   ██║   ██║██║   ██║██║     ███████║   ██║   ██║██║     █████╗              //
+//   ╚██╗ ██╔╝██║   ██║██║     ██╔══██║   ██║   ██║██║     ██╔══╝              //
+//    ╚████╔╝ ╚██████╔╝███████╗██║  ██║   ██║   ██║███████╗███████╗            //
+//     ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚══════╝╚══════╝            //
+//                                                                             //
+//   ██████╗ ███████╗ ██████╗ ██╗███████╗████████╗███████╗██████╗ ███████╗     //
+//   ██╔══██╗██╔════╝██╔════╝ ██║██╔════╝╚══██╔══╝██╔════╝██╔══██╗██╔════╝     //
+//   ██████╔╝█████╗  ██║  ███╗██║███████╗   ██║   █████╗  ██████╔╝███████╗     //
+//   ██╔══██╗██╔══╝  ██║   ██║██║╚════██║   ██║   ██╔══╝  ██╔══██╗╚════██║     //
+//   ██║  ██║███████╗╚██████╔╝██║███████║   ██║   ███████╗██║  ██║███████║     //
+//   ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝     //
+//                                                                             //
+//   ██╗ ██████╗ ████████╗██████╗ ██╗                                          //
+//   ██║██╔═══██╗╚══██╔══╝██╔══██╗██║                                          //
+//   ██║██║   ██║   ██║   ██████╔╝██║                                          //
+//   ╚═╝██║   ██║   ██║   ██╔═══╝ ╚═╝                                          //
+//   ██╗╚██████╔╝   ██║   ██║     ██╗                                          //
+//   ╚═╝ ╚═════╝    ╚═╝   ╚═╝     ╚═╝                                          //
+//=============================================================================//
+//                      NON-VOLATILE REGISTERS (OTP)                           //
+//=============================================================================//
+/////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief DISABLE – Outputs and filter disable register (0x0015, default 0x0000)
@@ -435,8 +451,9 @@ struct ANGLECOM {
  * 1    | ABI_off       | R/W/P | ABI outputs off (0 = Normal mode, 1 = ABI pins tristate)
  * 2-5  | (reserved)    | R/W/P | Reserved bits (must be 0)
  * 6    | FILTER_disable| R/W/P | Disable output filter (0 = Filter enabled (default), 1 = Filter
- * disabled) 7    | (reserved)    | R/W/P | Reserved bit (must be 0) 8-15 | (unused)      | -     |
- * Unused upper bits (reads 0)
+ *      |               |       | disabled)
+ * 7    | (reserved)    | R/W/P | Reserved bit (must be 0)
+ * 8-15 | (unused)      | -     | Unused upper bits (reads 0)
  */
 struct DISABLE {
     static constexpr uint16_t ADDRESS = 0x0015;
@@ -474,10 +491,10 @@ struct DISABLE {
 /**
  * @brief ZPOSM – Zero Position MSB register (0x0016, default 0x0000)
  *
- * Bits | Name    | R/W/P | Description
- * ---- | ------- | ----- | -----------------------------------------------
- * 0-7  | ZPOSM   | R/W/P | Most significant 8 bits of the zero position
- * 8-15 | (unused)| -     | Unused upper bits (reads 0)
+ * Bits  | Name    | R/W/P | Description
+ * ------|---------|-------|-----------------------------------------------
+ * 0-7   | ZPOSM   | R/W/P | Most significant 8 bits of the zero position
+ * 8-15  | (unused)| -     | Unused upper bits (reads 0)
  *
  * @note Together with ZPOSL, forms a 14-bit zero position value.
  */
@@ -495,13 +512,12 @@ struct ZPOSM {
 /**
  * @brief ZPOSL – Zero Position LSB register (0x0017, default 0x0000)
  *
- * Bits | Name    | R/W/P | Description
- * ---- | ------- | ----- |
- * ------------------------------------------------------------------------- 0-5  | ZPOSL   | R/W/P
- * | Least significant 6 bits of the zero position 6    | Dia1_en | R/W/P | Diagnostic feature 1
- * (Default 0; for AS5147U automotive variant only) 7    | Dia2_en | R/W/P | Diagnostic feature 2
- * (Default 0; for AS5147U automotive variant only) 8-15 | (unused)| -     | Unused upper bits
- * (reads 0)
+ * Bits  | Name    | R/W/P | Description
+ * ------|---------|-------|-----------------------------------------------
+ * 0-5   | ZPOSL   | R/W/P | Least significant 6 bits of the zero position
+ * 6     | Dia1_en | R/W/P | Diagnostic feature 1 (Default 0; for AS5147U automotive variant only)
+ * 7     | Dia2_en | R/W/P | Diagnostic feature 2 (Default 0; for AS5147U automotive variant only)
+ * 8-15  | (unused)| -     | Unused upper bits (reads 0)
  *
  * @note Bits 6 and 7 are not applicable on the AS5047U (remain 0 unless using AS5147U).
  */
@@ -521,13 +537,13 @@ struct ZPOSL {
 /**
  * @brief SETTINGS1 – Custom setting register 1 (0x0018, default 0x0000)
  *
- * Bits | Name    | R/W/P | Description
- * ---- | ------- | ----- | --------------------------------------------------------------
- * 0-2  | K_max   | R/W/P | K_max coefficient for adaptive filter (default 0x0)
- * 3-5  | K_min   | R/W/P | K_min coefficient for adaptive filter (default 0x0)
- * 6    | Dia3_en | R/W/P | Diagnostic feature 3 (Default 0; not applicable for AS5047U)
- * 7    | Dia4_en | R/W/P | Diagnostic feature 4 (Default 0; not applicable for AS5047U)
- * 8-15 | (unused)| -     | Unused upper bits (reads 0)
+ * Bits  | Name    | R/W/P | Description
+ * ------|---------|-------|--------------------------------------------------------------
+ * 0-2   | K_max   | R/W/P | K_max coefficient for adaptive filter (default 0x0)
+ * 3-5   | K_min   | R/W/P | K_min coefficient for adaptive filter (default 0x0)
+ * 6     | Dia3_en | R/W/P | Diagnostic feature 3 (Default 0; not applicable for AS5047U)
+ * 7     | Dia4_en | R/W/P | Diagnostic feature 4 (Default 0; not applicable for AS5047U)
+ * 8-15  | (unused)| -     | Unused upper bits (reads 0)
  *
  * @details K_max and K_min define the adaptive filter's dynamic range. Higher K values increase
  * filter bandwidth (more noise, less filtering). Both default to 0 (minimum filter setting).
@@ -572,18 +588,21 @@ struct SETTINGS1 {
 /**
  * @brief SETTINGS2 – Custom setting register 2 (0x0019, default 0x0000)
  *
- * Bits | Name       | R/W/P | Description
- * ---- | ---------- | ----- |
- * ------------------------------------------------------------------------------- 0    | IWIDTH |
- * R/W/P | Index pulse width (0: 3 LSB pulses (default), 1: 1 LSB pulse) 1    | NOISESET   | R/W/P |
- * Noise setting for 3.3V operation at 150°C (0: Normal noise, 1: Reduced noise) 2    | DIR        |
- * R/W/P | Rotation direction setting (0: CW default, 1: Invert direction) 3    | UVW_ABI    | R/W/P
- * | Select ABI or UVW interface for outputs and PWM (0: ABI active, PWM on W; 1: UVW active, PWM on
- * I) 4    | DAECDIS    | R/W/P | Dynamic angle error compensation disable (0: DAEC on (default), 1:
- * DAEC off) 5    | ABI_DEC    | R/W/P | ABI decimal count enable (0: Binary resolution, 1: Decimal
- * pulses per revolution) 6    | Data_select| R/W/P | Selects angle data at 0x3FFF (0: ANGLECOM, 1:
- * ANGLEUNC readout) 7    | PWMon      | R/W/P | PWM output enable (0: PWM disabled, 1: PWM enabled)
- * 8-15 | (unused)   | -     | Unused upper bits (reads 0)
+ * Bits  | Name        | R/W/P | Description
+ * ------|-------------|-------|--------------------------------------------------------------
+ * 0     | IWIDTH      | R/W/P | Index pulse width (0: 3 LSB pulses (default), 1: 1 LSB pulse)
+ * 1     | NOISESET    | R/W/P | Noise setting for 3.3V operation at 150°C (0: Normal noise,
+ *       |             |       | 1: Reduced noise)
+ * 2     | DIR         | R/W/P | Rotation direction setting (0: CW default, 1: Invert direction)
+ * 3     | UVW_ABI     | R/W/P | Select ABI or UVW interface for outputs and PWM (0: ABI active,
+ *       |             |       | PWM on W; 1: UVW active, PWM on I)
+ * 4     | DAECDIS     | R/W/P | Dynamic angle error compensation disable (0: DAEC on (default),
+ *       |             |       | 1: DAEC off)
+ * 5     | ABI_DEC     | R/W/P | ABI decimal count enable (0: Binary resolution, 1: Decimal pulses
+ *       |             |       | per revolution)
+ * 6     | Data_select | R/W/P | Selects angle data at 0x3FFF (0: ANGLECOM, 1: ANGLEUNC readout)
+ * 7     | PWMon       | R/W/P | PWM output enable (0: PWM disabled, 1: PWM enabled)
+ * 8-15  | (unused)    | -     | Unused upper bits (reads 0)
  *
  * @details This register configures various interface options. IWIDTH sets the index pulse width in
  * the ABI interface. DIR inverts the direction of the incremental signals (defines rotation
@@ -657,26 +676,36 @@ static_assert(sizeof(SETTINGS2) == 2, "SETTINGS2 must be 2 bytes");
 /**
  * @brief SETTINGS3 – Custom setting register 3 (0x001A, default 0x0000)
  *
- * Bits | Name   | R/W/P | Description
- * ---- | ------ | ----- | ---------------------------------------------------------------
- * 0-2  | UVWPP  | R/W/P | UVW commutation pole pair count (0=1pp up to 6=7pp, 7=7pp)
- * 3-4  | HYS    | R/W/P | Incremental output hysteresis setting (see table below)
- * 5-7  | ABIRES | R/W/P | Resolution of ABI interface (incremental resolution code)
- * 8-15 | (unused)| -    | Unused upper bits (reads 0)
+ * Bits  | Name    | R/W/P | Description
+ * ------|---------|-------|--------------------------------------------------------------
+ * 0-2   | UVWPP   | R/W/P | UVW commutation pole pair count (0=1pp up to 6=7pp, 7=7pp)
+ * 3-4   | HYS     | R/W/P | Incremental output hysteresis setting (see table below)
+ * 5-7   | ABIRES  | R/W/P | Resolution of ABI interface (incremental resolution code)
+ * 8-15  | (unused)| -     | Unused upper bits (reads 0)
  *
  * Hysteresis (HYS) options (for incremental outputs):
- * - 00: 1 LSB hysteresis (0.17°) – **default**
- * - 01: 2 LSB hysteresis (0.35°)
- * - 10: 3 LSB hysteresis (0.52°)
- * - 11: 0 LSB (no hysteresis, outputs may toggle on slightest motion)
+ *   - 00: 1 LSB hysteresis (0.17°) – **default**
+ *   - 01: 2 LSB hysteresis (0.35°)
+ *   - 10: 3 LSB hysteresis (0.52°)
+ *   - 11: 0 LSB (no hysteresis, outputs may toggle on slightest motion)
  *
  * The ABIRES field selects the incremental encoder resolution. Its interpretation depends on
- * ABI_DEC (binary or decimal mode). For binary mode (ABI_DEC=0): code 0b000 = 12-bit (4096
- * steps/1024 pulses per rev, default), 0b001 = 11-bit, 0b010 = 10-bit, 0b011 = 13-bit, 0b100 =
- * 14-bit (16384 steps/4096 ppr, max). Codes 0b101–0b111 are reserved in binary mode (treated as
- * 14-bit max). For decimal mode (ABI_DEC=1): codes map to decimal pulses: 0b000 = 1000 ppr (4000
- * steps), 0b001 = 500 ppr, 0b010 = 400 ppr, 0b011 = 300 ppr, 0b100 = 200 ppr, 0b101 = 100 ppr,
- * 0b110 = 50 ppr, 0b111 = 25 ppr.
+ * ABI_DEC (binary or decimal mode). For binary mode (ABI_DEC=0):
+ *   - code 0b000 = 12-bit (4096 steps/1024 pulses per rev, default)
+ *   - 0b001 = 11-bit
+ *   - 0b010 = 10-bit
+ *   - 0b011 = 13-bit
+ *   - 0b100 = 14-bit (16384 steps/4096 ppr, max)
+ *   - Codes 0b101–0b111 are reserved in binary mode (treated as 14-bit max).
+ * For decimal mode (ABI_DEC=1): codes map to decimal pulses:
+ *   - 0b000 = 1000 ppr (4000 steps)
+ *   - 0b001 = 500 ppr
+ *   - 0b010 = 400 ppr
+ *   - 0b011 = 300 ppr
+ *   - 0b100 = 200 ppr
+ *   - 0b101 = 100 ppr
+ *   - 0b110 = 50 ppr
+ *   - 0b111 = 25 ppr.
  */
 struct SETTINGS3 {
     static constexpr uint16_t ADDRESS = 0x001A;
@@ -728,11 +757,11 @@ static_assert(sizeof(SETTINGS3) == 2, "SETTINGS3 must be 2 bytes");
 /**
  * @brief ECC – ECC Settings register (0x001B, default 0x0000)
  *
- * Bits | Name       | R/W/P | Description
- * ---- | ---------- | ----- | ---------------------------------------------
- * 0-6  | ECC_chsum  | R/W/P | ECC checksum bits (7-bit ECC for OTP content)
- * 7    | ECC_en     | R/W/P | Enable ECC protection (0 = disable, 1 = enable ECC)
- * 8-15 | (unused)   | -     | Unused upper bits (reads 0)
+ * Bits  | Name      | R/W/P | Description
+ * ------|-----------|-------|---------------------------------------------
+ * 0-6   | ECC_chsum | R/W/P | ECC checksum bits (7-bit ECC for OTP content)
+ * 7     | ECC_en    | R/W/P | Enable ECC protection (0 = disable, 1 = enable ECC)
+ * 8-15  | (unused)  | -     | Unused upper bits (reads 0)
  *
  * @details This register holds the Error-Correcting Code (ECC) for the OTP registers. To protect
  * the custom settings, set ECC_en=1 and then program the ECC_chsum with the correct checksum before
